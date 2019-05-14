@@ -2,47 +2,23 @@ package com.mlss.whatsapp_manager;
 
 import java.io.IOException;
 
-import com.mlss.whatsapp_manager.Greeter.Greet;
-import com.mlss.whatsapp_manager.Greeter.WhoToGreet;
-
-import com.mlss.whatsapp_common.UserFeatures;
-
+import akka.actor.Props;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import com.typesafe.config.ConfigFactory;
+
+import com.mlss.whatsapp_manager.Manager;
+import com.mlss.whatsapp_manager.Greeter.WhoToGreet;
+import com.mlss.whatsapp_common.UserFeatures;
 
 public class Main {
     public static void main(String[] args) {
-        final ActorSystem system = ActorSystem.create("whatsapp_manager");
+        final ActorSystem system = ActorSystem.create("whatsapp_manager", ConfigFactory.load());
 
         try {
-            //#create-actors
-            final ActorRef printerActor =
-                    system.actorOf(Printer.props(), "printerActor");
-            final ActorRef howdyGreeter =
-                    system.actorOf(Greeter.props("Howdy", printerActor), "howdyGreeter");
-            final ActorRef helloGreeter =
-                    system.actorOf(Greeter.props("Hello", printerActor), "helloGreeter");
-            final ActorRef goodDayGreeter =
-                    system.actorOf(Greeter.props("Good day", printerActor), "goodDayGreeter");
-            //#create-actors
-
-            //#main-send-messages
-            howdyGreeter.tell(new WhoToGreet("Akka"), ActorRef.noSender());
-            howdyGreeter.tell(new Greet(), ActorRef.noSender());
-
-            howdyGreeter.tell(new WhoToGreet("Lightbend"), ActorRef.noSender());
-            howdyGreeter.tell(new Greet(), ActorRef.noSender());
-
-            helloGreeter.tell(new WhoToGreet("Java"), ActorRef.noSender());
-            helloGreeter.tell(new Greet(), ActorRef.noSender());
-
-            goodDayGreeter.tell(new WhoToGreet("Play"), ActorRef.noSender());
-            goodDayGreeter.tell(new Greet(), ActorRef.noSender());
-            //#main-send-messages
-
-            System.out.println(">>> Press ENTER to exit <<<");
+            system.actorOf(Props.create(Manager.class), "manager");
             System.in.read();
-        } catch (IOException ioe) {
+        } catch (java.io.IOException exp) {
         } finally {
             system.terminate();
         }

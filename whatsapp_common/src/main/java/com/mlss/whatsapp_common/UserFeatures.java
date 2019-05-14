@@ -1,8 +1,10 @@
 package com.mlss.whatsapp_common;
 
+import java.io.Serializable;
+
 public class UserFeatures {
 
-    static public class ConnectRequest {
+    static public class ConnectRequest implements Serializable {
         public final String username;
 
         public ConnectRequest(String username) {
@@ -10,17 +12,17 @@ public class UserFeatures {
         }
     }
 
-    static public class ConnectionAccepted {
+    static public class ConnectionAccepted implements Serializable {
         public ConnectionAccepted() {
         }
     }
 
-    static public class ConnectionDenied {
+    static public class ConnectionDenied implements Serializable {
         public ConnectionDenied() {
         }
     }
 
-    static public class DisconnectRequest {
+    static public class DisconnectRequest implements Serializable {
         public DisconnectRequest() {
         }
     }
