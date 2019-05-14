@@ -10,6 +10,14 @@ import com.typesafe.config.ConfigFactory;
 
 import com.mlss.whatsapp_common.UserFeatures.ConnectRequest;
 
+/* Issues:
+
+    * Serializing
+    * Ports don't change with netty.tcp
+
+*/
+
+
 public class Main {
     public static void main(String[] args) {
         final ActorSystem system = ActorSystem.create("whatsapp_client", ConfigFactory.load());
