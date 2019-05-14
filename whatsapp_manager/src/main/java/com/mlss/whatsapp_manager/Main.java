@@ -5,6 +5,8 @@ import java.io.IOException;
 import com.mlss.whatsapp_manager.Greeter.Greet;
 import com.mlss.whatsapp_manager.Greeter.WhoToGreet;
 
+import com.mlss.whatsapp_common.UserFeatures;
+
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 
