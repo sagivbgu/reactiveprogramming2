@@ -1,0 +1,52 @@
+<project>
+    
+	<parent>
+		<groupId>mlss</groupId>
+        <artifactId>whatsapp</artifactId>
+        <version>1.0</version>
+    </parent>
+	
+	<modelVersion>4.0.0</modelVersion>
+	<artifactId>whatsapp_client</artifactId>
+    
+    <properties>
+      <akka.version>2.6.0-M1</akka.version>
+    </properties>
+
+    <dependencies>
+
+        <dependency>
+            <groupId>mlss</groupId>
+            <artifactId>whatsapp_common</artifactId>
+            <version>1.0</version>
+        </dependency>
+
+    </dependencies>
+	
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.5.1</version>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>1.6.0</version>
+                <configuration>
+                    <executable>java</executable>
+                    <arguments>
+                        <argument>-classpath</argument>
+                        <classpath />
+                        <argument>com.mlss.whatsapp_client.Main</argument>
+                    </arguments>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
