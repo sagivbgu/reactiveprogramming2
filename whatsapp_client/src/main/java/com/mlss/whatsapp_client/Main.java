@@ -1,4 +1,4 @@
-package com.mlss.whatsapp_server;
+package com.mlss.whatsapp_client;
 
 import java.io.IOException;
 
@@ -12,7 +12,7 @@ import com.mlss.whatsapp_common.UserFeatures.ConnectRequest;
 
 public class Main {
     public static void main(String[] args) {
-        final ActorSystem system = ActorSystem.create("whatsapp_server", ConfigFactory.load());
+        final ActorSystem system = ActorSystem.create("whatsapp_client", ConfigFactory.load());
 
         try {
             ActorSelection selection =
