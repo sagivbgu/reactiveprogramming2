@@ -48,7 +48,7 @@
                     <arguments>
                         <argument>-classpath</argument>
                         <classpath />
-                        <argument>com.mlss.whatsapp_server.WhatsappServer</argument>
+                        <argument>com.mlss.whatsapp_server.Main</argument>
                     </arguments>
                 </configuration>
             </plugin>
