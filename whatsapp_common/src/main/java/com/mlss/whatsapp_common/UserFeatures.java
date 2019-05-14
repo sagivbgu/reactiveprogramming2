@@ -1,53 +1,30 @@
 package com.mlss.whatsapp_common;
 
-import akka.actor.AbstractActor;
-import akka.actor.ActorRef;
-import akka.actor.Props;
+public class UserFeatures {
 
-//#greeter-messages
-public class UserFeatures extends AbstractActor {
-//#greeter-messages
-  static public Props props(String message, ActorRef printerActor) {
-    return Props.create(UserFeatures.class, () -> new UserFeatures(message, printerActor));
-  }
+    static public class ConnectRequest {
+        public final String username;
 
-  //#greeter-messages
-  static public class WhoToGreet {
-    public final String who;
-
-    public WhoToGreet(String who) {
-        this.who = who;
+        public ConnectRequest(String username) {
+            this.username = username;
+        }
     }
-  }
 
-  static public class Greet {
-    public Greet() {
+    static public class ConnectionAccepted {
+        public ConnectionAccepted() {
+        }
     }
-  }
-  //#greeter-messages
 
-  private final String message;
-  private final ActorRef printerActor;
-  private String greeting = "";
+    static public class ConnectionDenied {
+        public ConnectionDenied() {
+        }
+    }
 
-  public UserFeatures(String message, ActorRef printerActor) {
-    this.message = message;
-    this.printerActor = printerActor;
-  }
+    static public class DisconnectRequest {
+        public DisconnectRequest() {
+        }
+    }
 
-  @Override
-  public Receive createReceive() {
-    return receiveBuilder()
-        .match(WhoToGreet.class, wtg -> {
-          this.greeting = message + ", " + wtg.who;
-        })
-        .match(Greet.class, x -> {
-          //#greeter-send-message
-          printerActor.tell(new UserFeatures(greeting, printerActor), getSelf());
-          //#greeter-send-message
-        })
-        .build();
-  }
-//#greeter-messages
+    public UserFeatures() {
+    }
 }
-//#greeter-messages

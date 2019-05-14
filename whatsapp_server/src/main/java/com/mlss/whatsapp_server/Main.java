@@ -5,9 +5,9 @@ import java.io.IOException;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 
-public class WhatsappServer {
+public class Main {
   public static void main(String[] args) {
-    final ActorSystem system = ActorSystem.create("helloakka");
+    final ActorSystem system = ActorSystem.create("whatsapp_server");
     try {
       
       System.out.println(">>> Press ENTER to exit <<<");
