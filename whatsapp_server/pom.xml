@@ -1,32 +1,19 @@
 <project>
-    <modelVersion>4.0.0</modelVersion>
-
-    <groupId>mlss</groupId>
-    <artifactId>whatsapp_server</artifactId>
-    <version>1.0</version>
-
+    
+	<parent>
+		<groupId>mlss</groupId>
+        <artifactId>whatsapp</artifactId>
+        <version>1.0</version>
+    </parent>
+	
+	<modelVersion>4.0.0</modelVersion>
+	<artifactId>whatsapp_server</artifactId>
+    
     <properties>
       <akka.version>2.6.0-M1</akka.version>
     </properties>
 
     <dependencies>
-        <dependency>
-            <groupId>com.typesafe.akka</groupId>
-            <artifactId>akka-actor_2.12</artifactId>
-            <version>${akka.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.typesafe.akka</groupId>
-            <artifactId>akka-testkit_2.12</artifactId>
-            <version>${akka.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.12</version>
-            <scope>test</scope>
-        </dependency>
 
         <dependency>
             <groupId>mlss</groupId>
@@ -35,6 +22,7 @@
         </dependency>
 
     </dependencies>
+	
     <build>
         <plugins>
             <plugin>
