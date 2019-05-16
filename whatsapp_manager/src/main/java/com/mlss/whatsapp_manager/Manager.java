@@ -8,6 +8,7 @@ import com.mlss.whatsapp_common.UserFeatures.ConnectRequest;
 import com.mlss.whatsapp_common.UserFeatures.ConnectionAccepted;
 import com.mlss.whatsapp_common.UserFeatures.ConnectionDenied;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -17,9 +18,10 @@ public class Manager extends AbstractActor {
         return Props.create(Manager.class, () -> new Manager());
     }
 
-    Map<String, ActorPath> users;
+    HashMap<String, ActorPath> users;
 
     public Manager() {
+        users = new HashMap<>();
     }
 
     @Override
