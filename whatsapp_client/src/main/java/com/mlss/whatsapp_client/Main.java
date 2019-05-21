@@ -1,9 +1,6 @@
 package com.mlss.whatsapp_client;
 
-import akka.actor.Actor;
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
+import akka.actor.*;
 import com.typesafe.config.ConfigFactory;
 
 import com.mlss.whatsapp_common.UserFeatures.ConnectRequest;
@@ -24,6 +21,7 @@ public class Main {
         final ActorSystem system = ActorSystem.create("whatsapp_client", ConfigFactory.load());
 
         try {
+            ActorSelection managingServer = system.actorSelection("akka://whatsapp_manager@127.0.0.1:2552/user/manager");
             final ActorRef userActor = system.actorOf(Props.create(UserActor.class), "user_actor");
 
             userActor.tell(new ConnectRequest("asdf"), Actor.noSender());
