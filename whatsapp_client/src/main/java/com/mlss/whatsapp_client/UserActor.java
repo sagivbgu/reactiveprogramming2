@@ -27,6 +27,7 @@ public class UserActor extends AbstractActor {
 
         this.connectingState = receiveBuilder()
                 .match(ConnectionAccepted.class, this::OnConnectionAccepted)
+                .match(ConnectionDenied.class, this::OnConnectionDenied)
                 .build();
 
         this.disconnectedState = receiveBuilder()
@@ -48,14 +49,14 @@ public class UserActor extends AbstractActor {
     private void OnConnectionAccepted(ConnectionAccepted connection_accepted) {
         getContext().become(this.connectedState);
         System.out.println(
-                String.format("%s has connected successfully", connection_accepted.acceptedUsername)
+                String.format("%s has connected successfully!", connection_accepted.acceptedUsername)
         );
     }
 
     private void OnConnectionDenied(ConnectionDenied connection_denied) {
         getContext().become(this.disconnectedState);
         System.out.println(
-                String.format("{} is in use!", connection_denied.deniedUsername)
+                String.format("%s is     in use!", connection_denied.deniedUsername)
         );
     }
 
