@@ -43,26 +43,26 @@ public class UserActor extends AbstractActor {
     }
 
     private void OnConnectRequest(ConnectRequest request) {
-        getContext().become(connectingState);
-        managingServer.tell(request, getSelf());
+        getContext().become(this.connectingState);
+        this.managingServer.tell(request, getSelf());
     }
 
-    private void OnConnectionAccepted(ConnectionAccepted connectionAccepted) {
-        getContext().become(connectedState);
+    private void OnConnectionAccepted(ConnectionAccepted connection_accepted) {
+        getContext().become(this.connectedState);
         System.out.println(
-                String.format("%s has connected successfully", connectionAccepted.acceptedUsername)
+                String.format("%s has connected successfully", connection_accepted.accepted_username)
         );
     }
 
-    private void OnConnectionDenied(ConnectionDenied connectionDenied) {
-        getContext().become(disconnectedState);
+    private void OnConnectionDenied(ConnectionDenied connection_denied) {
+        getContext().become(this.disconnectedState);
         System.out.println(
-                String.format("{} is in use!", connectionDenied.deniedUsername)
+                String.format("{} is in use!", connection_denied.denied_username)
         );
     }
 
     private void OnDisconnectRequset(DisconnectRequest request) {
-        getContext().become(disconnectedState);
-        managingServer.tell(new DisconnectRequest(), getSelf());
+        getContext().become(this.disconnectedState);
+        this.managingServer.tell(new DisconnectRequest(), getSelf());
     }
 }
