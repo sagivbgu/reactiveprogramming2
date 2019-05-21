@@ -1,14 +1,15 @@
 package com.mlss.whatsapp_client;
 
-import java.io.IOException;
-
 import akka.actor.Actor;
 import akka.actor.ActorRef;
-import akka.actor.ActorSelection;
 import akka.actor.ActorSystem;
+import akka.actor.Props;
 import com.typesafe.config.ConfigFactory;
 
 import com.mlss.whatsapp_common.UserFeatures.ConnectRequest;
+import com.mlss.whatsapp_common.UserFeatures.DisconnectRequest;
+
+import java.io.IOException;
 
 /* Issues:
 
@@ -23,10 +24,10 @@ public class Main {
         final ActorSystem system = ActorSystem.create("whatsapp_client", ConfigFactory.load());
 
         try {
-            ActorSelection selection =
-                    system.actorSelection("akka://whatsapp_manager@192.168.1.16:2552/user/manager");
+            final ActorRef userActor = system.actorOf(Props.create(UserActor.class), "user_actor");
 
-            selection.tell(new ConnectRequest("ml"), Actor.noSender());
+            userActor.tell(new DisconnectRequest(), Actor.noSender());
+
             System.in.read();
         } catch (IOException ioe) {
         } finally {
