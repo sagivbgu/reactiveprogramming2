@@ -47,17 +47,17 @@ public class UserActor extends AbstractActor {
         managingServer.tell(request, getSelf());
     }
 
-    private void OnConnectionAccepted(ConnectionAccepted connection_accepted) {
+    private void OnConnectionAccepted(ConnectionAccepted connectionAccepted) {
         getContext().become(connectedState);
         System.out.println(
-                String.format("%s has connected successfully", connection_accepted.accepted_username)
+                String.format("%s has connected successfully", connectionAccepted.acceptedUsername)
         );
     }
 
-    private void OnConnectionDenied(ConnectionDenied connection_denied) {
+    private void OnConnectionDenied(ConnectionDenied connectionDenied) {
         getContext().become(disconnectedState);
         System.out.println(
-                String.format("{} is in use!", connection_denied.denied_username)
+                String.format("{} is in use!", connectionDenied.deniedUsername)
         );
     }
 
