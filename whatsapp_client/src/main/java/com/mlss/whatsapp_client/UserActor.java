@@ -21,8 +21,7 @@ public class UserActor extends AbstractActor {
     private final AbstractActor.Receive disconnected_state;
 
     public UserActor() {
-        managing_server =
-                getContext().actorSelection("akka://whatsapp_manager@127.0.0.1:2552/user/manager");
+        managing_server = null;
 
         connected_state = receiveBuilder()
                 .match(DisconnectRequest.class, this::OnDisonnectRequset)
@@ -46,6 +45,7 @@ public class UserActor extends AbstractActor {
     }
 
     private void OnConnectRequset(ConnectRequest request) {
+        managing_server = getContext().actorSelection("akka://whatsapp_manager@127.0.0.1:2552/user/manager");
         getContext().become(connecting_state);
         managing_server.tell(request, getSelf());
     }
@@ -66,6 +66,6 @@ public class UserActor extends AbstractActor {
 
     private void OnDisonnectRequset(DisconnectRequest request) {
         getContext().become(disconnected_state);
-        //        managing_server.tell();
+        managing_server.tell(new DisconnectRequest(), getSelf());
     }
 }

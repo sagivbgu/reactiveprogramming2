@@ -26,7 +26,7 @@ public class Main {
         try {
             final ActorRef userActor = system.actorOf(Props.create(UserActor.class), "user_actor");
 
-            userActor.tell(new DisconnectRequest(), Actor.noSender());
+            userActor.tell(new ConnectRequest("asdf"), Actor.noSender());
 
             System.in.read();
         } catch (IOException ioe) {
