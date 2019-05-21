@@ -31,15 +31,13 @@ public class UserActor extends AbstractActor {
 
         this.disconnectedState = receiveBuilder()
                 .match(ConnectRequest.class, this::OnConnectRequest)
+                .matchAny(o -> System.out.println("Please connect before entering commands!"))
                 .build();
     }
 
     @Override
     public Receive createReceive() {
-        return receiveBuilder()
-                .match(ConnectRequest.class, this::OnConnectRequest)
-                .matchAny(o -> System.out.println("Please connect before entering commands!"))
-                .build();
+        return this.disconnectedState;
     }
 
     private void OnConnectRequest(ConnectRequest request) {
