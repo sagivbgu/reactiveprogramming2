@@ -13,18 +13,18 @@ public class UserFeatures {
     }
 
     static public class ConnectionAccepted implements Serializable {
-        public final String accepted_username;
+        public final String acceptedUsername;
 
-        public ConnectionAccepted(String accepted_username) {
-            this.accepted_username = accepted_username;
+        public ConnectionAccepted(String acceptedUsername) {
+            this.acceptedUsername = acceptedUsername;
         }
     }
 
     static public class ConnectionDenied implements Serializable {
-        public final String denied_username;
+        public final String deniedUsername;
 
         public ConnectionDenied(String accepted_username) {
-            this.denied_username = accepted_username;
+            this.deniedUsername = accepted_username;
         }
     }
 
