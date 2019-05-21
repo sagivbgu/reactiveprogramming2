@@ -33,11 +33,11 @@ public class Manager extends AbstractActor {
                     Object reply;
                     if (users.containsKey(request.username))
                     {
-                        reply = new ConnectionDenied();
+                        reply = new ConnectionDenied(request.username);
                     }
                     else
                     {
-                        reply = new ConnectionAccepted();
+                        reply = new ConnectionAccepted(request.username);
                     }
 
                     getSender().tell(reply, getSelf());

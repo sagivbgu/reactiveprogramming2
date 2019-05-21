@@ -5,6 +5,8 @@ import java.io.IOException;
 import akka.actor.Props;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
+import akka.routing.BroadcastGroup;
+import akka.routing.Router;
 import com.typesafe.config.ConfigFactory;
 
 import com.mlss.whatsapp_manager.Manager;
@@ -17,6 +19,8 @@ public class Main {
 
         try {
             system.actorOf(Props.create(Manager.class), "manager");
+
+
             System.in.read();
         } catch (java.io.IOException exp) {
         } finally {
