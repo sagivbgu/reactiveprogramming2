@@ -1,16 +1,16 @@
 package com.mlss.whatsapp_manager;
 
 import akka.actor.AbstractActor;
-import akka.actor.ActorPath;
 import akka.actor.Props;
 
+import com.mlss.whatsapp_common.ManagerCommands.UserNotFound;
+import com.mlss.whatsapp_common.ManagerCommands.UserAddressRequest;
+import com.mlss.whatsapp_common.ManagerCommands.UserAddressResponse;
 import com.mlss.whatsapp_common.UserFeatures.ConnectRequest;
 import com.mlss.whatsapp_common.UserFeatures.ConnectionAccepted;
 import com.mlss.whatsapp_common.UserFeatures.ConnectionDenied;
 
 import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 
 public class Manager extends AbstractActor {
@@ -18,10 +18,10 @@ public class Manager extends AbstractActor {
         return Props.create(Manager.class, () -> new Manager());
     }
 
-    HashMap<String, ActorPath> users;
+    HashMap<String, String> usersToAddresses;
 
     public Manager() {
-        users = new HashMap<>();
+        usersToAddresses = new HashMap<>();
     }
 
     @Override
@@ -31,7 +31,7 @@ public class Manager extends AbstractActor {
                     System.out.println("New connection: " + request.username);
 
                     Object reply;
-                    if (users.containsKey(request.username))
+                    if (usersToAddresses.containsKey(request.username))
                     {
                         reply = new ConnectionDenied(request.username);
                     }
@@ -41,7 +41,13 @@ public class Manager extends AbstractActor {
                     }
 
                     getSender().tell(reply, getSelf());
-                    users.put(request.username, getSender().path());
+                    usersToAddresses.put(request.username, getSender().path().address().toString());
+                })
+                .match(UserAddressRequest.class, request -> {
+                    if (!usersToAddresses.containsKey(request.username)) {
+                        getSender().tell(new UserNotFound(request.username), getSelf());
+                    }
+                    getSender().tell(new UserAddressResponse(usersToAddresses.get(request.username)), getSelf());
                 })
                 .build();
     }
