@@ -19,17 +19,17 @@ public class UserActor extends AbstractActor {
     private final AbstractActor.Receive disconnectedState;
 
     public UserActor(ActorSelection managingServer) {
-        managingServer = managingServer;
+        this.managingServer = managingServer;
 
-        connectedState = receiveBuilder()
+        this.connectedState = receiveBuilder()
                 .match(DisconnectRequest.class, this::OnDisconnectRequset)
                 .build();
 
-        connectingState = receiveBuilder()
+        this.connectingState = receiveBuilder()
                 .match(ConnectionAccepted.class, this::OnConnectionAccepted)
                 .build();
 
-        disconnectedState = receiveBuilder()
+        this.disconnectedState = receiveBuilder()
                 .match(ConnectRequest.class, this::OnConnectRequest)
                 .build();
     }
