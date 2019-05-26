@@ -22,7 +22,7 @@ public class UserActor extends AbstractActor {
         this.managingServer = managingServer;
 
         this.connectedState = receiveBuilder()
-                .match(DisconnectRequest.class, this::OnDisconnectRequset)
+                .match(DisconnectRequest.class, this::OnDisconnectRequest)
                 .build();
 
         this.connectingState = receiveBuilder()
@@ -60,7 +60,7 @@ public class UserActor extends AbstractActor {
         );
     }
 
-    private void OnDisconnectRequset(DisconnectRequest request) {
+    private void OnDisconnectRequest(DisconnectRequest request) {
         getContext().become(this.disconnectedState);
         this.managingServer.tell(new DisconnectRequest(), getSelf());
     }
