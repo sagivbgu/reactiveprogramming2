@@ -11,6 +11,9 @@ import com.mlss.whatsapp_common.ManagerCommands.UserAddressResponse;
 import com.mlss.whatsapp_common.UserFeatures.ConnectRequest;
 import com.mlss.whatsapp_common.UserFeatures.ConnectionAccepted;
 import com.mlss.whatsapp_common.UserFeatures.ConnectionDenied;
+import com.mlss.whatsapp_common.UserFeatures.DisconnectRequest;
+import com.mlss.whatsapp_common.UserFeatures.DisconnectAccepted;
+import org.omg.PortableInterceptor.SYSTEM_EXCEPTION;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -31,24 +34,40 @@ public class Manager extends AbstractActor {
     public Receive createReceive() {
         return receiveBuilder()
                 .match(ConnectRequest.class, this::onConnectRequest)
+                .match(DisconnectRequest.class, this::onDisconnectRequest)
                 .match(UserAddressRequest.class, this::onUserAddressRequest)
                 .match(Terminated.class, this::onUserTermination)
                 .build();
     }
 
     private void onConnectRequest(ConnectRequest request) {
-        System.out.println("New connection: " + request.username);
-
         Object reply;
         if (usersToAddresses.containsKey(request.username)) {
             reply = new ConnectionDenied(request.username);
         } else {
             reply = new ConnectionAccepted(request.username);
+
+            usersToAddresses.put(request.username, getSender().path().address().toString());
             getContext().watch(getSender());
+
+            System.out.println("New user: " + request.username + " " + getSender().path().address().toString());
         }
 
         getSender().tell(reply, getSelf());
-        usersToAddresses.put(request.username, getSender().path().toString());
+    }
+
+    private void onDisconnectRequest(DisconnectRequest request) {
+        String userPath = getSender().path().address().toString();
+        System.out.println("User disconnected: " + userPath);
+        String username = getUsernameByPath(userPath);
+        if (username == null) {
+            throw new IllegalArgumentException();
+        }
+
+        this.usersToAddresses.remove(username);
+
+        getSender().tell(new DisconnectAccepted(username), getSelf());
+        getContext().unwatch(getSender());
     }
 
     private void onUserAddressRequest(UserAddressRequest request) {
@@ -62,20 +81,31 @@ public class Manager extends AbstractActor {
     }
 
     private void onUserTermination(Terminated t) {
-        ActorRef terminatedActor = t.actor();
-        String actorPath = terminatedActor.path().toString();
+        System.out.println("addressTerminated: " + t.getAddressTerminated());
+        System.out.println("existenceConfirmed: " + t.getExistenceConfirmed());
 
-        int prevSize = usersToAddresses.size();
+        ActorRef terminatedActor = t.getActor();
+        if (!terminatedActor.isTerminated()) {
+            return;
+        }
 
+        String userPath = terminatedActor.path().address().toString();
+        String username = getUsernameByPath(userPath);
+        if (username == null) {
+            throw new IllegalStateException();
+        }
+
+        usersToAddresses.remove(username);
+        System.out.println("Terminated: " + username);
+    }
+
+    private String getUsernameByPath(String userPath) {
         for (Map.Entry<String, String> entry : usersToAddresses.entrySet()) {
-            if (entry.getValue().equals(actorPath)) {
-                usersToAddresses.remove(entry.getKey());
-                break;
+            if (entry.getValue().equals(userPath)) {
+                return entry.getKey();
             }
         }
 
-        if (prevSize == usersToAddresses.size()) {
-            throw new IllegalStateException();
-        }
+        return null;
     }
 }
