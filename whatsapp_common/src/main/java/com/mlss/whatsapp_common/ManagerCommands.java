@@ -12,9 +12,11 @@ public class ManagerCommands {
     }
 
     static public class UserAddressResponse implements Serializable {
+        public final String username;
         public final String address;
 
-        public UserAddressResponse(String address) {
+        public UserAddressResponse(String username, String address) {
+            this.username = username;
             this.address = address;
         }
     }

@@ -4,9 +4,8 @@ import akka.actor.*;
 import com.typesafe.config.ConfigFactory;
 
 import com.mlss.whatsapp_common.UserFeatures.ConnectRequest;
-import com.mlss.whatsapp_common.UserFeatures.DisconnectRequest;
 
-import java.io.IOException;
+import java.util.Scanner;
 
 /* Issues:
 
@@ -22,9 +21,9 @@ public class Main {
 
         try {
             ActorSelection managingServer = system.actorSelection("akka://whatsapp_manager@127.0.0.1:2552/user/manager");
-            final ActorRef userActor = system.actorOf(UserActor.props(managingServer), "user_actor");
-
-            CommandsExecuter.start(userActor);
+            final ActorRef userActor = system.actorOf(UserActor.props(managingServer), "userActor");
+            System.out.println("*** Welcome to Whatsapp ***");
+            new CommandsExecutor(userActor).start();
         } finally {
             system.terminate();
         }
