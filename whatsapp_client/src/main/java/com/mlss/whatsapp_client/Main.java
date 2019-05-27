@@ -6,7 +6,10 @@ import com.typesafe.config.ConfigFactory;
 import com.mlss.whatsapp_common.UserFeatures.ConnectRequest;
 import com.mlss.whatsapp_common.UserFeatures.DisconnectRequest;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.Scanner;
 
 /* Issues:
 
@@ -21,10 +24,26 @@ public class Main {
         final ActorSystem system = ActorSystem.create("whatsapp_client", ConfigFactory.load());
 
         try {
-            ActorSelection managingServer = system.actorSelection("akka://whatsapp_manager@127.0.0.1:2552/user/manager");
-            final ActorRef userActor = system.actorOf(UserActor.props(managingServer), "user_actor");
+            final ActorRef userActor = system.actorOf(UserActor.props(), "user_actor");
 
-            CommandsExecuter.start(userActor);
+            BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+            String ba = null;
+
+            System.out.println("Press to connect: ");
+            ba = reader.readLine();
+
+            userActor.tell(new ConnectRequest("kaki"), ActorRef.noSender());
+
+            System.out.println("Press to disconnect: ");
+            ba = reader.readLine();
+
+            userActor.tell(new DisconnectRequest(), ActorRef.noSender());
+
+            System.out.println("Press to exit: ");
+            ba = reader.readLine();
+
+            //CommandsExecuter.start(userActor);
+        } catch (IOException e) {
         } finally {
             system.terminate();
         }

@@ -3,6 +3,7 @@ package com.mlss.whatsapp_manager;
 import akka.actor.Props;
 import akka.actor.ActorSystem;
 import com.typesafe.config.ConfigFactory;
+import org.omg.PortableInterceptor.SYSTEM_EXCEPTION;
 
 public class Main {
     public static void main(String[] args) {
@@ -11,7 +12,7 @@ public class Main {
         try {
             system.actorOf(Props.create(Manager.class), "manager");
 
-
+            System.out.println("Running...");
             System.in.read();
         } catch (java.io.IOException exp) {
         } finally {
