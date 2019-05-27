@@ -33,6 +33,14 @@ public class UserFeatures {
         }
     }
 
+    static public class DisconnectAccepted implements Serializable {
+        public final String disconnectedUsername;
+
+        public DisconnectAccepted(String disconnectedUsername) {
+            this.disconnectedUsername = disconnectedUsername;
+        }
+    }
+
     public UserFeatures() {
     }
 }
