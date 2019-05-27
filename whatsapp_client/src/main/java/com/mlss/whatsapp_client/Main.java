@@ -24,8 +24,7 @@ public class Main {
         final ActorSystem system = ActorSystem.create("whatsapp_client", ConfigFactory.load());
 
         try {
-            ActorSelection managingServer = system.actorSelection("akka://whatsapp_manager@127.0.0.1:2552/user/manager");
-            final ActorRef userActor = system.actorOf(UserActor.props(managingServer), "userActor");
+            final ActorRef userActor = system.actorOf(UserActor.props(), "userActor");
             System.out.println("*** Welcome to Whatsapp ***");
             new CommandsExecutor(userActor).start();
         } finally {
