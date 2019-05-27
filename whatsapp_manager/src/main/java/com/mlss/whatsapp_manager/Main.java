@@ -3,7 +3,6 @@ package com.mlss.whatsapp_manager;
 import akka.actor.Props;
 import akka.actor.ActorSystem;
 import com.typesafe.config.ConfigFactory;
-import org.omg.PortableInterceptor.SYSTEM_EXCEPTION;
 
 public class Main {
     public static void main(String[] args) {
