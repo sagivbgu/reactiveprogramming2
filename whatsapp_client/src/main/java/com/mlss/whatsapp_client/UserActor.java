@@ -9,16 +9,27 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Queue;
+import akka.pattern.Patterns;
+import akka.util.Timeout;
+import com.mlss.whatsapp_common.UserFeatures.ConnectRequest;
+import com.mlss.whatsapp_common.UserFeatures.ConnectionAccepted;
+import com.mlss.whatsapp_common.UserFeatures.ConnectionDenied;
+import com.mlss.whatsapp_common.UserFeatures.DisconnectRequest;
+import com.mlss.whatsapp_common.UserFeatures.DisconnectAccepted;
+
+import scala.concurrent.Await;
+import scala.concurrent.Future;
+
+import java.util.concurrent.TimeUnit;
 
 
 public class UserActor extends AbstractActor {
-    static public Props props(ActorSelection managingServer) {
-        return Props.create(UserActor.class, () -> new UserActor(managingServer));
+    static public Props props() {
+        return Props.create(UserActor.class, () -> new UserActor());
     }
 
     private ActorSelection managingServer;
     private final AbstractActor.Receive connectedState;
-    private final AbstractActor.Receive connectingState;
     private final AbstractActor.Receive disconnectedState;
     private HashMap<String, ActorSelection> usersToActors;
     private HashMap<String, Queue<Object>> usersToMessageQueues;
@@ -49,8 +60,8 @@ public class UserActor extends AbstractActor {
         }
     }
 
-    public UserActor(ActorSelection managingServer) {
-        this.managingServer = managingServer;
+    public UserActor() {
+        this.managingServer = null;
         this.usersToActors = new HashMap<>();
         this.usersToMessageQueues = new HashMap<>();
 
@@ -59,11 +70,6 @@ public class UserActor extends AbstractActor {
                 .match(UserAddressResponse.class, this::onUserAddressResponse)
                 .match(UserNotFound.class, this::onUserNotFound)
                 .match(SendMessageRequest.class, this::onSendMessageRequest)
-                .build();
-
-        this.connectingState = receiveBuilder()
-                .match(ConnectionAccepted.class, this::OnConnectionAccepted)
-                .match(ConnectionDenied.class, this::OnConnectionDenied)
                 .build();
 
         this.disconnectedState = receiveBuilder()
@@ -77,28 +83,55 @@ public class UserActor extends AbstractActor {
         return this.disconnectedState;
     }
 
+    private Object sendBlockingRequest(ActorSelection managingServer, Object request) {
+        Timeout timeout = new Timeout(2, TimeUnit.SECONDS);
+        Object result = null;
+
+        Future<Object> rt = Patterns.ask(managingServer, request, timeout.duration().toMillis());
+        try {
+            result = Await.result(rt, timeout.duration());
+        } catch (Exception e) {
+            System.out.println("server is offline!");
+        }
+
+        return result;
+    }
+
     private void OnConnectRequest(ConnectRequest request) {
-        getContext().become(this.connectingState);
-        this.managingServer.tell(request, getSelf());
-    }
+        ActorSelection managingServer = getContext().actorSelection("akka://whatsapp_manager@127.0.0.1:2552/user/manager");
 
-    private void OnConnectionAccepted(ConnectionAccepted connectionAccepted) {
-        getContext().become(this.connectedState);
-        System.out.println(
-                String.format("%s has connected successfully!", connectionAccepted.acceptedUsername)
-        );
-    }
+        Object result = sendBlockingRequest(managingServer, request);
+        if (result == null) {
+            return;
+        }
 
-    private void OnConnectionDenied(ConnectionDenied connectionDenied) {
-        getContext().become(this.disconnectedState);
-        System.out.println(
-                String.format("%s is in use!", connectionDenied.deniedUsername)
-        );
+        String print_message;
+        if (result instanceof ConnectionAccepted) {
+            print_message = String.format("%s has connected successfully!", ((ConnectionAccepted) result).acceptedUsername);
+            this.managingServer = managingServer;
+            getContext().become(this.connectedState);
+        } else {
+            print_message = String.format("%s is in use!", ((ConnectionDenied) result).deniedUsername);
+        }
+
+        System.out.println(print_message);
     }
 
     private void OnDisconnectRequest(DisconnectRequest request) {
+        Object result = sendBlockingRequest(this.managingServer, request);
         getContext().become(this.disconnectedState);
-        this.managingServer.tell(new DisconnectRequest(), getSelf());
+
+        if (result == null) {
+            return;
+        }
+
+        this.managingServer = null;
+
+        if (result instanceof DisconnectAccepted) {
+            System.out.println(
+                    String.format("%s has been disconnected successfully!", ((DisconnectAccepted) result).disconnectedUsername)
+            );
+        }
     }
 
     private void onUserAddressResponse(UserAddressResponse response) {

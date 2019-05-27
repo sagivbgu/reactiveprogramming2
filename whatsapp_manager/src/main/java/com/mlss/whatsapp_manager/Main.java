@@ -11,7 +11,7 @@ public class Main {
         try {
             system.actorOf(Props.create(Manager.class), "manager");
 
-
+            System.out.println("Running...");
             System.in.read();
         } catch (java.io.IOException exp) {
         } finally {
