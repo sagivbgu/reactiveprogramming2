@@ -21,7 +21,7 @@ public class Manager extends AbstractActor {
         return Props.create(Manager.class, () -> new Manager());
     }
 
-    HashMap<String, String> usersToAddresses;
+    private HashMap<String, String> usersToAddresses;
 
     public Manager() {
         usersToAddresses = new HashMap<>();
@@ -52,11 +52,12 @@ public class Manager extends AbstractActor {
     }
 
     private void onUserAddressRequest(UserAddressRequest request) {
+        System.out.println("Got user address request: " + request.username);
         Object reply;
-        if (usersToAddresses.containsKey(request.username)) {
+        if (!usersToAddresses.containsKey(request.username)) {
             reply = new UserNotFound(request.username);
         } else {
-            reply = new UserAddressResponse(usersToAddresses.get(request.username));
+            reply = new UserAddressResponse(request.username, usersToAddresses.get(request.username));
         }
         getSender().tell(reply, getSelf());
     }
