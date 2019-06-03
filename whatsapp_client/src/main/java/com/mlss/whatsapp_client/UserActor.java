@@ -28,7 +28,7 @@ public class UserActor extends AbstractActor {
         return Props.create(UserActor.class, () -> new UserActor());
     }
 
-    private String username; // TODO
+    private String username;
     private ActorSelection managingServer;
     private final AbstractActor.Receive connectedState;
     private final AbstractActor.Receive disconnectedState;
@@ -100,9 +100,8 @@ public class UserActor extends AbstractActor {
     }
 
     private Object sendBlockingRequest(ActorSelection managingServer, Object request) {
-        Timeout timeout = new Timeout(2, TimeUnit.SECONDS);
+        Timeout timeout = new Timeout(5, TimeUnit.SECONDS);
         Object result = null;
-
         Future<Object> rt = Patterns.ask(managingServer, request, timeout.duration().toMillis());
         try {
             result = Await.result(rt, timeout.duration());
