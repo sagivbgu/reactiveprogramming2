@@ -80,7 +80,7 @@ public class UserActor extends AbstractActor {
         this.usersToMessageQueues = new HashMap<>();
 
         this.connectedState = receiveBuilder()
-                .match(DisconnectRequest.class, this::OnDisconnectRequest)
+                .match(DisconnectRequest.class, this::onDisconnectRequest)
                 .match(UserAddressResponse.class, this::onUserAddressResponse)
                 .match(UserNotFound.class, this::onUserNotFound)
                 .match(SendMessageRequest.class, this::onSendMessageRequest)
@@ -89,7 +89,7 @@ public class UserActor extends AbstractActor {
                 .build();
 
         this.disconnectedState = receiveBuilder()
-                .match(ConnectRequest.class, this::OnConnectRequest)
+                .match(ConnectRequest.class, this::onConnectRequest)
                 .matchAny(o -> System.out.println("Please connect before entering commands!"))
                 .build();
     }
@@ -112,7 +112,7 @@ public class UserActor extends AbstractActor {
         return result;
     }
 
-    private void OnConnectRequest(ConnectRequest request) {
+    private void onConnectRequest(ConnectRequest request) {
         ActorSelection managingServer = getContext().actorSelection("akka://whatsapp_manager@127.0.0.1:2552/user/manager");
 
         Object result = sendBlockingRequest(managingServer, request);
@@ -133,7 +133,7 @@ public class UserActor extends AbstractActor {
         System.out.println(printMessage);
     }
 
-    private void OnDisconnectRequest(DisconnectRequest request) {
+    private void onDisconnectRequest(DisconnectRequest request) {
         Object result = sendBlockingRequest(this.managingServer, request);
         getContext().become(this.disconnectedState);
         this.managingServer = null;
