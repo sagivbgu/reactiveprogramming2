@@ -2,7 +2,9 @@ package com.mlss.whatsapp_client;
 
 import akka.actor.*;
 
+import com.mlss.whatsapp_common.GroupMessages.*;
 import com.mlss.whatsapp_common.ManagerCommands.*;
+import com.mlss.whatsapp_common.UserFeatures.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,14 +15,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Queue;
-
 import akka.pattern.Patterns;
 import akka.util.Timeout;
-import com.mlss.whatsapp_common.UserFeatures.ConnectRequest;
-import com.mlss.whatsapp_common.UserFeatures.ConnectionAccepted;
-import com.mlss.whatsapp_common.UserFeatures.ConnectionDenied;
-import com.mlss.whatsapp_common.UserFeatures.DisconnectRequest;
-import com.mlss.whatsapp_common.UserFeatures.DisconnectAccepted;
 
 import scala.concurrent.Await;
 import scala.concurrent.Future;
@@ -105,6 +101,10 @@ public class UserActor extends AbstractActor {
                 .match(SendMessageRequest.class, this::onSendMessageRequest)
                 .match(TextMessage.class, this::onTextMessage)
                 .match(BinaryMessage.class, this::onBinaryMessage)
+                .match(CreateGroup.class, createGroup -> this.managingServer.tell(createGroup, getSelf()))
+                .match(GroupSendText.class, groupSendText -> this.managingServer.tell(groupSendText, getSelf()))
+                .match(NewGroupText.class, newGroupText -> System.out.println(String.format("%s:%s:%s", newGroupText.groupName, newGroupText.senderUsername, newGroupText.message)))
+                .match(CommandFailure.class, failure -> System.out.println(failure.failureMessage))
                 .build();
     }
 
@@ -113,9 +113,11 @@ public class UserActor extends AbstractActor {
         return this.disconnectedState;
     }
 
+    // TODO: Delete this
     private Object sendBlockingRequest(ActorSelection managingServer, Object request) {
-        Timeout timeout = new Timeout(5, TimeUnit.SECONDS);
+        Timeout timeout = new Timeout(2, TimeUnit.SECONDS);
         Object result = null;
+
         Future<Object> rt = Patterns.ask(managingServer, request, timeout.duration().toMillis());
         try {
             result = Await.result(rt, timeout.duration());

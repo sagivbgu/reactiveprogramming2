@@ -11,7 +11,7 @@
     <version>1.0</version>
     
 	<properties>
-      <akka.version>2.6.0-M1</akka.version>
+        <akka.version>2.5.23</akka.version>
     </properties>
 	
 	<modules>
