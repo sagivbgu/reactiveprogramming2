@@ -5,14 +5,8 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.actor.Terminated;
 
-import com.mlss.whatsapp_common.ManagerCommands.UserNotFound;
-import com.mlss.whatsapp_common.ManagerCommands.UserAddressRequest;
-import com.mlss.whatsapp_common.ManagerCommands.UserAddressResponse;
-import com.mlss.whatsapp_common.UserFeatures.ConnectRequest;
-import com.mlss.whatsapp_common.UserFeatures.ConnectionAccepted;
-import com.mlss.whatsapp_common.UserFeatures.ConnectionDenied;
-import com.mlss.whatsapp_common.UserFeatures.DisconnectRequest;
-import com.mlss.whatsapp_common.UserFeatures.DisconnectAccepted;
+import com.mlss.whatsapp_common.ManagerCommands.*;
+import com.mlss.whatsapp_common.UserFeatures.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -24,9 +18,11 @@ public class Manager extends AbstractActor {
     }
 
     private HashMap<String, String> usersToAddresses;
+    private HashMap<String, ActorRef> groupNamesToActors;
 
     public Manager() {
         usersToAddresses = new HashMap<>();
+        groupNamesToActors = new HashMap<>();
     }
 
     @Override
@@ -35,7 +31,9 @@ public class Manager extends AbstractActor {
                 .match(ConnectRequest.class, this::onConnectRequest)
                 .match(DisconnectRequest.class, this::onDisconnectRequest)
                 .match(UserAddressRequest.class, this::onUserAddressRequest)
-                .match(Terminated.class, this::onUserTermination)
+                .match(CreateGroup.class, this::onCreateGroup)
+                .match(GroupSendText.class, this::onGroupSendText)
+                .match(Terminated.class, this::onActorTermination)
                 .build();
     }
 
@@ -46,7 +44,7 @@ public class Manager extends AbstractActor {
         } else {
             reply = new ConnectionAccepted(request.username);
 
-            usersToAddresses.put(request.username, getSender().path().address().toString() + "/user/userActor");
+            usersToAddresses.put(request.username, getSender().path().address().toString());
             getContext().watch(getSender());
 
             System.out.println("New user: " + request.username + " " + getSender().path().address().toString());
@@ -80,20 +78,21 @@ public class Manager extends AbstractActor {
         getSender().tell(reply, getSelf());
     }
 
-    private void onUserTermination(Terminated t) {
+    private void onActorTermination(Terminated t) {
         ActorRef terminatedActor = t.getActor();
-        if (!terminatedActor.isTerminated()) {
+        System.out.println("Group terminated");
+
+        if (this.groupNamesToActors.containsValue(terminatedActor)) {
+            this.groupNamesToActors.remove(getGroupNameByActor(terminatedActor));
             return;
         }
 
-        String userPath = terminatedActor.path().address().toString();
-        String username = getUsernameByPath(userPath);
-        if (username == null) {
-            throw new IllegalStateException();
+        if (this.usersToAddresses.containsValue(terminatedActor)) {
+            this.usersToAddresses.remove(getUsernameByPath(terminatedActor.toString()));
+            return;
         }
 
-        usersToAddresses.remove(username);
-        System.out.println("Terminated: " + username);
+        System.out.println("onActorTermination: Something wrong happened");
     }
 
     private String getUsernameByPath(String userPath) {
@@ -102,7 +101,47 @@ public class Manager extends AbstractActor {
                 return entry.getKey();
             }
         }
-
         return null;
+    }
+
+    private String getGroupNameByActor(ActorRef groupActor) {
+        for (Map.Entry<String, ActorRef> entry : this.groupNamesToActors.entrySet()) {
+            if (entry.getValue() == groupActor) {
+                return entry.getKey();
+            }
+        }
+        return null;
+    }
+
+    private void onCreateGroup(CreateGroup createGroup) {
+        if (this.groupNamesToActors.containsKey(createGroup.groupName)) {
+            getSender().tell(
+                    new CommandFailure(String.format("%s already exists!", createGroup.groupName)),
+                    getSelf()
+            );
+            return;
+        }
+
+        String groupCreatorUsername = getUsernameByPath(getSender().path().toString());
+
+        ActorRef groupActor = getContext().actorOf(
+                GroupActor.props(createGroup.groupName, getSender(), groupCreatorUsername),
+                String.format("Group__%s", createGroup.groupName));
+
+        getContext().watch(groupActor);
+        groupNamesToActors.put(createGroup.groupName, groupActor);
+
+        System.out.println(String.format("Group %s created", createGroup.groupName));
+    }
+
+    private void onGroupSendText(GroupSendText groupSendText) {
+        if (!groupNamesToActors.containsKey(groupSendText.groupName)) {
+            getSender().tell(
+                    new CommandFailure(String.format("%s does not exist!", groupSendText.groupName)), getSelf()
+            );
+            return;
+        }
+
+        groupNamesToActors.get(groupSendText.groupName).forward(groupSendText, getContext());
     }
 }

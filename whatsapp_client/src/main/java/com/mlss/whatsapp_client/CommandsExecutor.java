@@ -1,6 +1,9 @@
 package com.mlss.whatsapp_client;
 
 import akka.actor.ActorRef;
+import com.mlss.whatsapp_common.UserFeatures.*;
+import com.mlss.whatsapp_common.GroupMessages.*;
+import com.mlss.whatsapp_common.ManagerCommands.*;
 import com.mlss.whatsapp_client.UserActor.*;
 import com.mlss.whatsapp_common.UserFeatures.ConnectRequest;
 
@@ -59,6 +62,10 @@ public class CommandsExecutor {
     }
 
     private void runUserCommand(String[] commandWords) throws IllegalCommandException {
+        if (commandWords.length < 2) {
+            throw new IllegalCommandException();
+        }
+
         switch (commandWords[1]) {
             case "connect":
                 runUserConnectCommand(commandWords);
@@ -69,15 +76,8 @@ public class CommandsExecutor {
             case "file":
                 runSendFileToUserCommand(commandWords);
                 break;
-            default:
-                throw new IllegalCommandException();
-        }
-    }
-
-    private void runGroupCommand(String[] commandWords) throws IllegalCommandException {
-        switch (commandWords[1]) {
-            case "":
-                // TODO
+            case "disconnect":
+                runUserDisonnectCommand(commandWords);
                 break;
             default:
                 throw new IllegalCommandException();
@@ -92,6 +92,13 @@ public class CommandsExecutor {
         this.userActor.tell(new ConnectRequest(commandWords[2]), ActorRef.noSender());
     }
 
+    private void runUserDisonnectCommand(String[] commandWords) throws IllegalCommandException {
+        if (commandWords.length != 2) {
+            throw new IllegalCommandException();
+        }
+
+        this.userActor.tell(new DisconnectRequest(), ActorRef.noSender());
+    }
 
     private void runSendTextToUserCommand(String[] commandWords) throws IllegalCommandException {
         if (commandWords.length < 4) {
@@ -130,5 +137,48 @@ public class CommandsExecutor {
         } catch (IOException e) {
             System.out.println(String.format("Error reading file %s", filePath));
         }
+    }
+
+    private void runGroupCommand(String[] commandWords) throws IllegalCommandException {
+        if (commandWords.length < 2) {
+            throw new IllegalCommandException();
+        }
+
+        switch (commandWords[1]) {
+            case "create":
+                runGroupCreateCommand(commandWords);
+                break;
+            case "send":
+                if (commandWords.length < 3) {
+                    throw new IllegalCommandException();
+                }
+
+                if (commandWords[2].equals("text")) {
+                    runGroupSendTextCommand(commandWords);
+                } else if (commandWords[2].equals("file")) {
+//                    runGroupSendTextCommand(commandWords);
+                } else {
+                    throw new IllegalCommandException();
+                }
+                break;
+            default:
+                throw new IllegalCommandException();
+        }
+    }
+
+    private void runGroupCreateCommand(String[] commandWords) throws IllegalCommandException {
+        if (commandWords.length != 3) {
+            throw new IllegalCommandException();
+        }
+
+        this.userActor.tell(new CreateGroup(commandWords[2]), ActorRef.noSender());
+    }
+
+    private void runGroupSendTextCommand(String[] commandWords) throws IllegalCommandException {
+        if (commandWords.length != 5) {
+            throw new IllegalCommandException();
+        }
+
+        this.userActor.tell(new GroupSendText(commandWords[3], commandWords[4]), ActorRef.noSender());
     }
 }

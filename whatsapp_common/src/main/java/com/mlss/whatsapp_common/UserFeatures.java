@@ -41,6 +41,14 @@ public class UserFeatures {
         }
     }
 
+    static public class CommandFailure implements Serializable {
+        public final String failureMessage;
+
+        public CommandFailure(String failureMessage) {
+            this.failureMessage = failureMessage;
+        }
+    }
+
     public UserFeatures() {
     }
 }

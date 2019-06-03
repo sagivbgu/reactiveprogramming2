@@ -29,6 +29,24 @@ public class ManagerCommands {
         }
     }
 
+    static public class CreateGroup implements Serializable {
+        public final String groupName;
+
+        public CreateGroup(String groupName) {
+            this.groupName = groupName;
+        }
+    }
+
+    static public class GroupSendText implements Serializable {
+        public final String groupName;
+        public final String message;
+
+        public GroupSendText(String groupName, String message) {
+            this.groupName = groupName;
+            this.message = message;
+        }
+    }
+
     public ManagerCommands() {
     }
 }
