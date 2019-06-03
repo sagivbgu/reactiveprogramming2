@@ -35,8 +35,9 @@ public class UserActor extends AbstractActor {
 
     private String username;
     private ActorSelection managingServer;
-    private final AbstractActor.Receive connectedState;
-    private final AbstractActor.Receive disconnectedState;
+    private final Receive disconnectedState;
+    private final Receive connectingState;
+    private final Receive connectedState;
     private HashMap<String, ActorSelection> usersToActors;
     private HashMap<String, Queue<Message>> usersToMessageQueues;
 
@@ -86,6 +87,17 @@ public class UserActor extends AbstractActor {
         this.usersToActors = new HashMap<>();
         this.usersToMessageQueues = new HashMap<>();
 
+        this.disconnectedState = receiveBuilder()
+                .match(ConnectRequest.class, this::onConnectRequest)
+                .matchAny(o -> System.out.println("Please connect before entering commands!"))
+                .build();
+
+        this.connectingState = receiveBuilder()
+                .match(ConnectionAccepted.class, this::onConnectionAccepted)
+                .match(ConnectionDenied.class, this::onConnectionDenied)
+                .matchAny(o -> System.out.println("Please wait until connection succeeds before entering commands!"))
+                .build();
+
         this.connectedState = receiveBuilder()
                 .match(DisconnectRequest.class, this::onDisconnectRequest)
                 .match(UserAddressResponse.class, this::onUserAddressResponse)
@@ -93,11 +105,6 @@ public class UserActor extends AbstractActor {
                 .match(SendMessageRequest.class, this::onSendMessageRequest)
                 .match(TextMessage.class, this::onTextMessage)
                 .match(BinaryMessage.class, this::onBinaryMessage)
-                .build();
-
-        this.disconnectedState = receiveBuilder()
-                .match(ConnectRequest.class, this::onConnectRequest)
-                .matchAny(o -> System.out.println("Please connect before entering commands!"))
                 .build();
     }
 
@@ -121,23 +128,40 @@ public class UserActor extends AbstractActor {
 
     private void onConnectRequest(ConnectRequest request) {
         ActorSelection managingServer = getContext().actorSelection("akka://whatsapp_manager@127.0.0.1:2552/user/manager");
+        this.managingServer = managingServer;
 
-        Object result = sendBlockingRequest(managingServer, request);
-        if (result == null) {
+        if (!isActorOnline(managingServer)) {
             return;
         }
 
-        String printMessage;
-        if (result instanceof ConnectionAccepted) {
-            printMessage = String.format("%s has connected successfully!", ((ConnectionAccepted) result).acceptedUsername);
-            this.managingServer = managingServer;
-            this.username = request.username;
-            getContext().become(this.connectedState);
-        } else {
-            printMessage = String.format("%s is in use!", ((ConnectionDenied) result).deniedUsername);
-        }
+        getContext().become(this.connectingState);
+        managingServer.tell(request, getSelf());
+        // TODO: getContext().watch(managingServer)
+    }
 
-        System.out.println(printMessage);
+    private boolean isActorOnline(ActorSelection actor) {
+        Timeout timeout = new Timeout(5, TimeUnit.SECONDS);
+        Future<ActorRef> rt = actor.resolveOne(timeout);
+
+        try {
+            Await.result(rt, timeout.duration());
+            return true;
+        } catch (Exception e) {
+            System.out.println("server is offline!");
+            return false;
+        }
+    }
+
+    private void onConnectionAccepted(ConnectionAccepted response) {
+        this.username = response.acceptedUsername;
+        getContext().become(this.connectedState);
+        System.out.println(String.format("%s has connected successfully!", response.acceptedUsername));
+    }
+
+    private void onConnectionDenied(ConnectionDenied response) {
+        System.out.println(String.format("%s is in use!", response.deniedUsername));
+        getContext().become(this.disconnectedState);
+        this.managingServer = null;
     }
 
     private void onDisconnectRequest(DisconnectRequest request) {
