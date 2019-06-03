@@ -1,8 +1,12 @@
 package com.mlss.whatsapp_client;
 
 import akka.actor.ActorRef;
+import com.mlss.whatsapp_client.UserActor.*;
 import com.mlss.whatsapp_common.UserFeatures.ConnectRequest;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Scanner;
 
@@ -62,6 +66,9 @@ public class CommandsExecutor {
             case "text":
                 runSendTextToUserCommand(commandWords);
                 break;
+            case "file":
+                runSendFileToUserCommand(commandWords);
+                break;
             default:
                 throw new IllegalCommandException();
         }
@@ -95,6 +102,33 @@ public class CommandsExecutor {
                 Arrays.stream(commandWords, 3, commandWords.length)
                         .toArray(String[]::new));
 
-        this.userActor.tell(new UserActor.SendMessageRequest(commandWords[2], new UserActor.TextMessage(message)), ActorRef.noSender());
+        this.userActor.tell(new SendMessageRequest(commandWords[2], new TextMessage(message)), ActorRef.noSender());
+    }
+
+    private void runSendFileToUserCommand(String[] commandWords) throws IllegalCommandException {
+        if (commandWords.length < 4) {
+            throw new IllegalCommandException();
+        }
+
+        String filePath = String.join(" ",
+                Arrays.stream(commandWords, 3, commandWords.length)
+                        .toArray(String[]::new));
+
+        String target = commandWords[2];
+        byte[] fileBytes;
+        if (Files.notExists(Paths.get(filePath))) {
+            System.out.println(String.format("%s does not exist!", filePath));
+            return;
+        }
+
+        String fileName = Paths.get(filePath).getFileName().toString();
+
+        try {
+            fileBytes = Files.readAllBytes(Paths.get(filePath));
+            this.userActor.tell(new SendMessageRequest(target, new BinaryMessage(fileBytes, fileName)),
+                    ActorRef.noSender());
+        } catch (IOException e) {
+            System.out.println(String.format("Error reading file %s", filePath));
+        }
     }
 }
