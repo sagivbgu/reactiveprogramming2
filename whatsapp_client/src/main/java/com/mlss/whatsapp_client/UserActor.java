@@ -3,12 +3,12 @@ package com.mlss.whatsapp_client;
 import akka.actor.*;
 
 import com.mlss.whatsapp_common.ManagerCommands.*;
-import com.mlss.whatsapp_common.UserFeatures.*;
 
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Queue;
+
 import akka.pattern.Patterns;
 import akka.util.Timeout;
 import com.mlss.whatsapp_common.UserFeatures.ConnectRequest;
@@ -28,33 +28,47 @@ public class UserActor extends AbstractActor {
         return Props.create(UserActor.class, () -> new UserActor());
     }
 
+    private String username; // TODO
     private ActorSelection managingServer;
     private final AbstractActor.Receive connectedState;
     private final AbstractActor.Receive disconnectedState;
     private HashMap<String, ActorSelection> usersToActors;
-    private HashMap<String, Queue<Object>> usersToMessageQueues;
+    private HashMap<String, Queue<Message>> usersToMessageQueues;
 
-    static public class TextMessage implements Serializable {
+    static abstract public class Message implements Serializable {
+        public String sender;
+
+        public Message() {
+        }
+
+        public void setSender(String sender) {
+            this.sender = sender;
+        }
+    }
+
+    static public class TextMessage extends Message implements Serializable {
         public final String message;
 
         public TextMessage(String message) {
+            super();
             this.message = message;
         }
     }
 
-    static public class BinaryMessage implements Serializable {
+    static public class BinaryMessage extends Message implements Serializable {
         public final byte[] message;
 
         public BinaryMessage(byte[] message) {
+            super();
             this.message = message;
         }
     }
 
     static public class SendMessageRequest implements Serializable {
         public final String target;
-        public final Object message;
+        public final Message message;
 
-        public SendMessageRequest(String target, Object message) {
+        public SendMessageRequest(String target, Message message) {
             this.target = target;
             this.message = message;
         }
@@ -70,6 +84,8 @@ public class UserActor extends AbstractActor {
                 .match(UserAddressResponse.class, this::onUserAddressResponse)
                 .match(UserNotFound.class, this::onUserNotFound)
                 .match(SendMessageRequest.class, this::onSendMessageRequest)
+                .match(TextMessage.class, this::onTextMessage)
+                .match(BinaryMessage.class, this::onBinaryMessage)
                 .build();
 
         this.disconnectedState = receiveBuilder()
@@ -105,27 +121,24 @@ public class UserActor extends AbstractActor {
             return;
         }
 
-        String print_message;
+        String printMessage;
         if (result instanceof ConnectionAccepted) {
-            print_message = String.format("%s has connected successfully!", ((ConnectionAccepted) result).acceptedUsername);
+            printMessage = String.format("%s has connected successfully!", ((ConnectionAccepted) result).acceptedUsername);
             this.managingServer = managingServer;
+            this.username = request.username;
             getContext().become(this.connectedState);
         } else {
-            print_message = String.format("%s is in use!", ((ConnectionDenied) result).deniedUsername);
+            printMessage = String.format("%s is in use!", ((ConnectionDenied) result).deniedUsername);
         }
 
-        System.out.println(print_message);
+        System.out.println(printMessage);
     }
 
     private void OnDisconnectRequest(DisconnectRequest request) {
         Object result = sendBlockingRequest(this.managingServer, request);
         getContext().become(this.disconnectedState);
-
-        if (result == null) {
-            return;
-        }
-
         this.managingServer = null;
+        this.username = null;
 
         if (result instanceof DisconnectAccepted) {
             System.out.println(
@@ -150,6 +163,7 @@ public class UserActor extends AbstractActor {
     }
 
     private void onSendMessageRequest(SendMessageRequest request) {
+        request.message.setSender(this.username);
         ActorSelection targetActor = this.usersToActors.get(request.target);
         if (targetActor == null) {
             getUserMessagesQueue(request.target).add(request.message);
@@ -159,10 +173,18 @@ public class UserActor extends AbstractActor {
         }
     }
 
-    private Queue<Object> getUserMessagesQueue(String username) {
+    private Queue<Message> getUserMessagesQueue(String username) {
         if (!this.usersToMessageQueues.containsKey(username)) {
             this.usersToMessageQueues.put(username, new LinkedList<>());
         }
         return this.usersToMessageQueues.get(username);
+    }
+
+    private void onTextMessage(TextMessage message) {
+        MessagePrinter.print(message.message, message.sender);
+    }
+
+    private void onBinaryMessage(BinaryMessage message) {
+        // TODO
     }
 }
