@@ -23,8 +23,8 @@ public class UserFeatures {
     static public class ConnectionDenied implements Serializable {
         public final String deniedUsername;
 
-        public ConnectionDenied(String accepted_username) {
-            this.deniedUsername = accepted_username;
+        public ConnectionDenied(String acceptedUsername) {
+            this.deniedUsername = acceptedUsername;
         }
     }
 
