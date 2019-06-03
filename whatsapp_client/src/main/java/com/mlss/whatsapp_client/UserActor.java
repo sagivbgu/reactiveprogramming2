@@ -4,7 +4,12 @@ import akka.actor.*;
 
 import com.mlss.whatsapp_common.ManagerCommands.*;
 
+import java.io.File;
+import java.io.IOException;
 import java.io.Serializable;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -57,10 +62,12 @@ public class UserActor extends AbstractActor {
 
     static public class BinaryMessage extends Message implements Serializable {
         public final byte[] message;
+        public final String fileName;
 
-        public BinaryMessage(byte[] message) {
+        public BinaryMessage(byte[] message, String fileName) {
             super();
             this.message = message;
+            this.fileName = fileName;
         }
     }
 
@@ -184,6 +191,12 @@ public class UserActor extends AbstractActor {
     }
 
     private void onBinaryMessage(BinaryMessage message) {
-        // TODO
+        String filePath = System.getProperty("user.dir") + File.separator + new Date().getTime() + "-" + message.fileName;
+        try {
+            Files.write(Paths.get(filePath), message.message);
+            MessagePrinter.print(String.format("File received: %s", filePath), message.sender);
+        } catch (IOException e) {
+            System.out.println(String.format("Error writing new file from %s to %s", message.sender, filePath));
+        }
     }
 }
