@@ -13,7 +13,6 @@ import com.mlss.whatsapp_common.UserFeatures.ConnectionAccepted;
 import com.mlss.whatsapp_common.UserFeatures.ConnectionDenied;
 import com.mlss.whatsapp_common.UserFeatures.DisconnectRequest;
 import com.mlss.whatsapp_common.UserFeatures.DisconnectAccepted;
-import org.omg.PortableInterceptor.SYSTEM_EXCEPTION;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -47,7 +46,7 @@ public class Manager extends AbstractActor {
         } else {
             reply = new ConnectionAccepted(request.username);
 
-            usersToAddresses.put(request.username, getSender().path().address().toString());
+            usersToAddresses.put(request.username, getSender().path().address().toString() + "/user/userActor");
             getContext().watch(getSender());
 
             System.out.println("New user: " + request.username + " " + getSender().path().address().toString());
@@ -82,9 +81,6 @@ public class Manager extends AbstractActor {
     }
 
     private void onUserTermination(Terminated t) {
-        System.out.println("addressTerminated: " + t.getAddressTerminated());
-        System.out.println("existenceConfirmed: " + t.getExistenceConfirmed());
-
         ActorRef terminatedActor = t.getActor();
         if (!terminatedActor.isTerminated()) {
             return;
