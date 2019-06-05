@@ -2,7 +2,6 @@ package com.mlss.whatsapp_client;
 
 import akka.actor.ActorRef;
 import com.mlss.whatsapp_common.UserFeatures.*;
-import com.mlss.whatsapp_common.GroupMessages.*;
 import com.mlss.whatsapp_common.ManagerCommands.*;
 import com.mlss.whatsapp_client.UserActor.*;
 import com.mlss.whatsapp_common.UserFeatures.ConnectRequest;
@@ -77,7 +76,7 @@ public class CommandsExecutor {
                 runSendFileToUserCommand(commandWords);
                 break;
             case "disconnect":
-                runUserDisonnectCommand(commandWords);
+                runUserDisconnectCommand(commandWords);
                 break;
             default:
                 throw new IllegalCommandException();
@@ -92,7 +91,7 @@ public class CommandsExecutor {
         this.userActor.tell(new ConnectRequest(commandWords[2]), ActorRef.noSender());
     }
 
-    private void runUserDisonnectCommand(String[] commandWords) throws IllegalCommandException {
+    private void runUserDisconnectCommand(String[] commandWords) throws IllegalCommandException {
         if (commandWords.length != 2) {
             throw new IllegalCommandException();
         }
@@ -105,9 +104,7 @@ public class CommandsExecutor {
             throw new IllegalCommandException();
         }
 
-        String message = String.join(" ",
-                Arrays.stream(commandWords, 3, commandWords.length)
-                        .toArray(String[]::new));
+        String message = joinWords(commandWords, 3);
 
         this.userActor.tell(new SendMessageRequest(commandWords[2], new TextMessage(message)), ActorRef.noSender());
     }
@@ -117,9 +114,7 @@ public class CommandsExecutor {
             throw new IllegalCommandException();
         }
 
-        String filePath = String.join(" ",
-                Arrays.stream(commandWords, 3, commandWords.length)
-                        .toArray(String[]::new));
+        String filePath = joinWords(commandWords, 3);
 
         String target = commandWords[2];
         byte[] fileBytes;
@@ -167,18 +162,27 @@ public class CommandsExecutor {
     }
 
     private void runGroupCreateCommand(String[] commandWords) throws IllegalCommandException {
-        if (commandWords.length != 3) {
+        if (commandWords.length < 3) {
             throw new IllegalCommandException();
         }
 
-        this.userActor.tell(new CreateGroup(commandWords[2]), ActorRef.noSender());
+        String groupName = joinWords(commandWords, 2);
+        this.userActor.tell(new CreateGroup(groupName), ActorRef.noSender());
     }
 
     private void runGroupSendTextCommand(String[] commandWords) throws IllegalCommandException {
-        if (commandWords.length != 5) {
+        if (commandWords.length < 5) {
             throw new IllegalCommandException();
         }
 
-        this.userActor.tell(new GroupSendText(commandWords[3], commandWords[4]), ActorRef.noSender());
+        String groupName = commandWords[3];
+        String message = joinWords(commandWords, 4);
+        this.userActor.tell(new GroupSendText(groupName, message), ActorRef.noSender());
+    }
+
+    private String joinWords(String[] commandWords, int fromIndex) {
+        return String.join(" ",
+                Arrays.stream(commandWords, fromIndex, commandWords.length)
+                        .toArray(String[]::new));
     }
 }
