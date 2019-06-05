@@ -15,7 +15,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Queue;
-import akka.pattern.Patterns;
+
 import akka.util.Timeout;
 
 import scala.concurrent.Await;
@@ -79,7 +79,7 @@ public class UserActor extends AbstractActor {
     }
 
     public UserActor() {
-        this.managingServer = null;
+        this.managingServer = getContext().actorSelection("akka://whatsapp_manager@127.0.0.1:2552/user/manager");
         this.usersToActors = new HashMap<>();
         this.usersToMessageQueues = new HashMap<>();
 
@@ -96,6 +96,7 @@ public class UserActor extends AbstractActor {
 
         this.connectedState = receiveBuilder()
                 .match(DisconnectRequest.class, this::onDisconnectRequest)
+                .match(DisconnectAccepted.class, response -> System.out.println(String.format("%s has been disconnected successfully!", response.disconnectedUsername)))
                 .match(UserAddressResponse.class, this::onUserAddressResponse)
                 .match(UserNotFound.class, this::onUserNotFound)
                 .match(SendMessageRequest.class, this::onSendMessageRequest)
@@ -113,26 +114,8 @@ public class UserActor extends AbstractActor {
         return this.disconnectedState;
     }
 
-    // TODO: Delete this
-    private Object sendBlockingRequest(ActorSelection managingServer, Object request) {
-        Timeout timeout = new Timeout(2, TimeUnit.SECONDS);
-        Object result = null;
-
-        Future<Object> rt = Patterns.ask(managingServer, request, timeout.duration().toMillis());
-        try {
-            result = Await.result(rt, timeout.duration());
-        } catch (Exception e) {
-            System.out.println("server is offline!");
-        }
-
-        return result;
-    }
-
     private void onConnectRequest(ConnectRequest request) {
-        ActorSelection managingServer = getContext().actorSelection("akka://whatsapp_manager@127.0.0.1:2552/user/manager");
-        this.managingServer = managingServer;
-
-        if (!isActorOnline(managingServer)) {
+        if (!validateActorOnline(managingServer)) {
             return;
         }
 
@@ -141,7 +124,8 @@ public class UserActor extends AbstractActor {
         // TODO: getContext().watch(managingServer)
     }
 
-    private boolean isActorOnline(ActorSelection actor) {
+    // TODO: Move to common utils
+    private boolean validateActorOnline(ActorSelection actor) {
         Timeout timeout = new Timeout(5, TimeUnit.SECONDS);
         Future<ActorRef> rt = actor.resolveOne(timeout);
 
@@ -163,19 +147,13 @@ public class UserActor extends AbstractActor {
     private void onConnectionDenied(ConnectionDenied response) {
         System.out.println(String.format("%s is in use!", response.deniedUsername));
         getContext().become(this.disconnectedState);
-        this.managingServer = null;
     }
 
     private void onDisconnectRequest(DisconnectRequest request) {
-        Object result = sendBlockingRequest(this.managingServer, request);
         getContext().become(this.disconnectedState);
-        this.managingServer = null;
         this.username = null;
-
-        if (result instanceof DisconnectAccepted) {
-            System.out.println(
-                    String.format("%s has been disconnected successfully!", ((DisconnectAccepted) result).disconnectedUsername)
-            );
+        if (validateActorOnline(this.managingServer)) {
+            this.managingServer.tell(request, getSelf());
         }
     }
 
