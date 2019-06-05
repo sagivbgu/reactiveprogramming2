@@ -18,6 +18,7 @@ import java.util.Queue;
 
 import akka.util.Timeout;
 
+import com.typesafe.config.ConfigFactory;
 import scala.concurrent.Await;
 import scala.concurrent.Future;
 
@@ -41,10 +42,6 @@ public class UserActor extends AbstractActor {
         public String sender;
 
         public Message() {
-        }
-
-        public void setSender(String sender) {
-            this.sender = sender;
         }
     }
 
@@ -79,7 +76,8 @@ public class UserActor extends AbstractActor {
     }
 
     public UserActor() {
-        this.managingServer = getContext().actorSelection("akka://whatsapp_manager@127.0.0.1:2552/user/manager");
+        String managingServerAddress = ConfigFactory.load().getString("akka.remote.managing-server");
+        this.managingServer = getContext().actorSelection(managingServerAddress);
         this.usersToActors = new HashMap<>();
         this.usersToMessageQueues = new HashMap<>();
 
@@ -174,7 +172,7 @@ public class UserActor extends AbstractActor {
     }
 
     private void onSendMessageRequest(SendMessageRequest request) {
-        request.message.setSender(this.username);
+        request.message.sender = this.username;
         ActorSelection targetActor = this.usersToActors.get(request.target);
         if (targetActor == null) {
             getUserMessagesQueue(request.target).add(request.message);
