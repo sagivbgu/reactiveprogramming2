@@ -85,6 +85,7 @@ public class UserActor extends AbstractActor {
 
         this.disconnectedState = receiveBuilder()
                 .match(ConnectRequest.class, this::onConnectRequest)
+                .match(DisconnectAccepted.class, response -> System.out.println(String.format("%s has been disconnected successfully!", response.disconnectedUsername)))
                 .matchAny(o -> System.out.println("Please connect before entering commands!"))
                 .build();
 
@@ -95,8 +96,8 @@ public class UserActor extends AbstractActor {
                 .build();
 
         this.connectedState = receiveBuilder()
+                .match(ConnectRequest.class, request -> System.out.println(String.format("Already connected as %s.", username)))
                 .match(DisconnectRequest.class, this::onDisconnectRequest)
-                .match(DisconnectAccepted.class, response -> System.out.println(String.format("%s has been disconnected successfully!", response.disconnectedUsername)))
                 .match(UserAddressResponse.class, this::onUserAddressResponse)
                 .match(UserNotFound.class, this::onUserNotFound)
                 .match(SendMessageRequest.class, this::onSendMessageRequest)
