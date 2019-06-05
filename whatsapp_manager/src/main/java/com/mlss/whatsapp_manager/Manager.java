@@ -91,7 +91,7 @@ public class Manager extends AbstractActor {
 
     private String getGroupNameByActor(ActorRef groupActor) {
         for (Map.Entry<String, ActorRef> entry : this.groupNamesToActors.entrySet()) {
-            if (entry.getValue() == groupActor) {
+            if (entry.getValue().equals(groupActor)) {
                 return entry.getKey();
             }
         }
@@ -139,17 +139,16 @@ public class Manager extends AbstractActor {
 
     private void onActorTermination(Terminated t) {
         ActorRef terminatedActor = t.getActor();
-        System.out.println(terminatedActor.path().toString());
 
         String terminatedGroupName = getGroupNameByActor(terminatedActor);
-        if (terminatedGroupName != null && this.groupNamesToActors.containsValue(terminatedGroupName)) {
+        if (terminatedGroupName != null && this.groupNamesToActors.containsKey(terminatedGroupName)) {
             this.groupNamesToActors.remove(terminatedGroupName);
             System.out.println("onActorTermination: Group %s terminated");
             return;
         }
 
         String terminatedUsername = getUsernameByPath(terminatedActor.path().toString());
-        if (terminatedUsername != null && this.usersToAddresses.containsValue(terminatedUsername)) {
+        if (terminatedUsername != null && this.usersToAddresses.containsKey(terminatedUsername)) {
             this.usersToAddresses.remove(terminatedUsername);
             System.out.println("onActorTermination: User %s terminated");
             return;

@@ -44,6 +44,10 @@ public class UserActor extends AbstractActor {
         this.usersToActors = new HashMap<>();
         this.usersToMessageQueues = new HashMap<>();
 
+        // TODO: Add inviteState
+        // Problem: This means that CommandExecuter will treat Yes/No as a valid command and won't print Illegal command
+        // Solution: If the user isn't in invite state, print here Illegal command.
+
         this.disconnectedState = receiveBuilder()
                 .match(ConnectRequest.class, this::onConnectRequest)
                 .match(DisconnectAccepted.class, response -> System.out.println(String.format("%s has been disconnected successfully!", response.disconnectedUsername)))

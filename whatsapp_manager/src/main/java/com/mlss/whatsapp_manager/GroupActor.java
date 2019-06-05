@@ -11,7 +11,6 @@ import akka.routing.Router;
 
 import com.mlss.whatsapp_common.GroupMessages.*;
 import com.mlss.whatsapp_common.ManagerCommands.*;
-import com.mlss.whatsapp_common.UserFeatures;
 import com.mlss.whatsapp_common.UserFeatures.*;
 
 
@@ -20,20 +19,31 @@ public class GroupActor extends AbstractActor {
         return Props.create(GroupActor.class, () -> new GroupActor(groupName, groupCreatorActor, groupCreateUsername));
     }
 
-    private enum Previledges {
-        MUTED_USER,
-        USER,
-        CO_ADMIN,
-        ADMIN
+    private enum Privileges {
+        MUTED_USER(0), USER(1), CO_ADMIN(2), ADMIN(3);
+
+        private int previledgeLevel;
+
+        public boolean hasPrivilegeOf(Privileges privilege) {
+            return this.previledgeLevel >= privilege.getPrivilegeLevel();
+        }
+
+        public int getPrivilegeLevel() {
+            return this.previledgeLevel;
+        }
+
+        private Privileges(int previledge_level) {
+            this.previledgeLevel = previledge_level;
+        }
     }
 
     private class UserInfo {
         public String username;
-        public Previledges previledges;
+        public Privileges privilege;
 
-        public UserInfo(String username, Previledges previledges) {
+        public UserInfo(String username, Privileges privilege) {
             this.username = username;
-            this.previledges = previledges;
+            this.privilege = privilege;
         }
     }
 
@@ -59,7 +69,7 @@ public class GroupActor extends AbstractActor {
         this.router = this.router.addRoutee(groupCreatorActor);
 
         this.actorToUserInfo = new HashMap<>();
-        this.actorToUserInfo.put(groupCreatorActor, new UserInfo(groupCreatorUsername, Previledges.ADMIN));
+        this.actorToUserInfo.put(groupCreatorActor, new UserInfo(groupCreatorUsername, Privileges.ADMIN));
     }
 
     @Override
@@ -68,12 +78,12 @@ public class GroupActor extends AbstractActor {
     }
 
     private void onLeaveGroupRequest(LeaveGroupRequest leaveGroupRequest) {
-        if (leaveGroupRequest.groupName != this.groupName) {
+        if (!this.groupName.equals(leaveGroupRequest.groupName)) {
             System.out.println("Manager did something wrong");
             return;
         }
 
-        if (!this.actorToUserInfo.containsValue(getSender())) {
+        if (!this.actorToUserInfo.containsKey(getSender())) {
             String errorMessage = String.format("%s is not in %s!", leaveGroupRequest.leavingUsername, leaveGroupRequest.groupName);
             System.out.println(errorMessage);
             getSender().tell(new CommandFailure(errorMessage), getSelf());
@@ -81,25 +91,38 @@ public class GroupActor extends AbstractActor {
         }
 
         UserInfo leavingUser = this.actorToUserInfo.get(getSender());
-        switch (leavingUser.previledges) {
-            case ADMIN:
-//                this.router.route(new );
-                getContext().stop(getSelf());
-                break;
+
+        if (leavingUser.privilege.hasPrivilegeOf(Privileges.MUTED_USER)) {
+            this.router.route(new GroupTextMessage(this.groupName, leavingUser.username, String.format("%s has left %s!", leavingUser.username, this.groupName)), this.getSelf());
+
+            if (leavingUser.privilege.hasPrivilegeOf(Privileges.ADMIN)) {
+                this.router.route(new GroupTextMessage(this.groupName, leavingUser.username, String.format("admin has closed %s!", this.groupName)), this.getSelf());
+            }
+
+            this.router = this.router.removeRoutee(getSender());
+            this.actorToUserInfo.remove(getSender());
+        }
+
+        if (leavingUser.privilege.hasPrivilegeOf(Privileges.CO_ADMIN)) {
+            // TODO: Remove from co-admin list
+        }
+
+        if (leavingUser.privilege.hasPrivilegeOf(Privileges.ADMIN)) {
+            getContext().stop(getSelf());
         }
     }
 
     private void OnGroupSendText(TextMessage message) {
         if (validateUserInGroup()) {
-        // Validate Previledges
-        router.route(new GroupTextMessage(this.groupName, message.sender, message.message), getSender());
+            // TODO: Validate Previledges
+            router.route(new GroupTextMessage(this.groupName, message.sender, message.message), getSender());
         }
     }
 
     private void OnGroupSendFile(BinaryMessage message) {
         if (validateUserInGroup()) {
-        // Validate Previledges
-        router.route(new GroupBinaryMessage(this.groupName, message), getSender());
+            // TODO: Validate Previledges
+            router.route(new GroupBinaryMessage(this.groupName, message), getSender());
         }
     }
 
