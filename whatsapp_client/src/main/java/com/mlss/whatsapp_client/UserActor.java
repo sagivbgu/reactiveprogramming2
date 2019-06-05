@@ -101,9 +101,10 @@ public class UserActor extends AbstractActor {
                 .match(SendMessageRequest.class, this::onSendMessageRequest)
                 .match(TextMessage.class, this::onTextMessage)
                 .match(BinaryMessage.class, this::onBinaryMessage)
-                .match(CreateGroup.class, createGroup -> this.managingServer.tell(createGroup, getSelf()))
+                .match(CreateGroupRequest.class, createGroupRequest -> this.managingServer.tell(createGroupRequest, getSelf()))
+                .match(LeaveGroupRequest.class, this::onLeaveGroupRequest)
                 .match(GroupSendText.class, groupSendText -> this.managingServer.tell(groupSendText, getSelf()))
-                .match(NewGroupText.class, newGroupText -> System.out.println(String.format("%s:%s:%s", newGroupText.groupName, newGroupText.senderUsername, newGroupText.message)))
+                .match(NewGroupText.class, newGroupText -> MessagePrinter.print(newGroupText.message, newGroupText.senderUsername, newGroupText.groupName))
                 .match(CommandFailure.class, failure -> System.out.println(failure.failureMessage))
                 .build();
     }
@@ -154,6 +155,11 @@ public class UserActor extends AbstractActor {
         if (validateActorOnline(this.managingServer)) {
             this.managingServer.tell(request, getSelf());
         }
+    }
+
+    private void onLeaveGroupRequest(LeaveGroupRequest leaveGroupRequest) {
+        leaveGroupRequest.leavingUsername = this.username;
+        this.managingServer.tell(leaveGroupRequest, getSelf());
     }
 
     private void onUserAddressResponse(UserAddressResponse response) {

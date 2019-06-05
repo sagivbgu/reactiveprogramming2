@@ -29,10 +29,19 @@ public class ManagerCommands {
         }
     }
 
-    static public class CreateGroup implements Serializable {
+    static public class CreateGroupRequest implements Serializable {
         public final String groupName;
 
-        public CreateGroup(String groupName) {
+        public CreateGroupRequest(String groupName) {
+            this.groupName = groupName;
+        }
+    }
+
+    static public class LeaveGroupRequest implements Serializable {
+        public final String groupName;
+        public String leavingUsername;
+
+        public LeaveGroupRequest(String groupName) {
             this.groupName = groupName;
         }
     }
