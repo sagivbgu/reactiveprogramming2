@@ -143,6 +143,9 @@ public class CommandsExecutor {
             case "create":
                 runGroupCreateCommand(commandWords);
                 break;
+            case "leave":
+                runGroupLeaveCommand(commandWords);
+                break;
             case "send":
                 if (commandWords.length < 3) {
                     throw new IllegalCommandException();
@@ -167,7 +170,16 @@ public class CommandsExecutor {
         }
 
         String groupName = joinWords(commandWords, 2);
-        this.userActor.tell(new CreateGroup(groupName), ActorRef.noSender());
+        this.userActor.tell(new CreateGroupRequest(groupName), ActorRef.noSender());
+    }
+
+    private void runGroupLeaveCommand(String[] commandWords) throws IllegalCommandException {
+        // TODO
+        if (commandWords.length != 3) {
+            throw new IllegalCommandException();
+        }
+
+        this.userActor.tell(new LeaveGroupRequest(commandWords[2]), ActorRef.noSender());
     }
 
     private void runGroupSendTextCommand(String[] commandWords) throws IllegalCommandException {

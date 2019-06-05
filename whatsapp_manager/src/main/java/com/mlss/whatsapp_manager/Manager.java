@@ -31,7 +31,8 @@ public class Manager extends AbstractActor {
                 .match(ConnectRequest.class, this::onConnectRequest)
                 .match(DisconnectRequest.class, this::onDisconnectRequest)
                 .match(UserAddressRequest.class, this::onUserAddressRequest)
-                .match(CreateGroup.class, this::onCreateGroup)
+                .match(CreateGroupRequest.class, this::onCreateGroup)
+                .match(LeaveGroupRequest.class, this::onLeaveGroup)
                 .match(GroupSendText.class, this::onGroupSendText)
                 .match(Terminated.class, this::onActorTermination)
                 .build();
@@ -44,21 +45,22 @@ public class Manager extends AbstractActor {
         } else {
             reply = new ConnectionAccepted(request.username);
 
-            usersToAddresses.put(request.username, getSender().path().address().toString());
+            usersToAddresses.put(request.username, getSender().path().toString());
             getContext().watch(getSender());
 
-            System.out.println("New user: " + request.username + " " + getSender().path().address().toString());
+            System.out.println("New user: " + request.username);
         }
 
         getSender().tell(reply, getSelf());
     }
 
     private void onDisconnectRequest(DisconnectRequest request) {
-        String userPath = getSender().path().address().toString();
-        System.out.println("User disconnected: " + userPath);
+        String userPath = getSender().path().toString();
+        System.out.println("User disconnected: " + getUsernameByPath(userPath));
         String username = getUsernameByPath(userPath);
         if (username == null) {
-            throw new IllegalArgumentException();
+            System.out.println("Got disconnect request from disconnected user");
+            return;
         }
 
         this.usersToAddresses.remove(username);
@@ -76,23 +78,6 @@ public class Manager extends AbstractActor {
             reply = new UserAddressResponse(request.username, usersToAddresses.get(request.username));
         }
         getSender().tell(reply, getSelf());
-    }
-
-    private void onActorTermination(Terminated t) {
-        ActorRef terminatedActor = t.getActor();
-        System.out.println("Group terminated");
-
-        if (this.groupNamesToActors.containsValue(terminatedActor)) {
-            this.groupNamesToActors.remove(getGroupNameByActor(terminatedActor));
-            return;
-        }
-
-        if (this.usersToAddresses.containsValue(terminatedActor)) {
-            this.usersToAddresses.remove(getUsernameByPath(terminatedActor.toString()));
-            return;
-        }
-
-        System.out.println("onActorTermination: Something wrong happened");
     }
 
     private String getUsernameByPath(String userPath) {
@@ -113,10 +98,10 @@ public class Manager extends AbstractActor {
         return null;
     }
 
-    private void onCreateGroup(CreateGroup createGroup) {
-        if (this.groupNamesToActors.containsKey(createGroup.groupName)) {
+    private void onCreateGroup(CreateGroupRequest createGroupRequest) {
+        if (this.groupNamesToActors.containsKey(createGroupRequest.groupName)) {
             getSender().tell(
-                    new CommandFailure(String.format("%s already exists!", createGroup.groupName)),
+                    new CommandFailure(String.format("%s already exists!", createGroupRequest.groupName)),
                     getSelf()
             );
             return;
@@ -125,13 +110,21 @@ public class Manager extends AbstractActor {
         String groupCreatorUsername = getUsernameByPath(getSender().path().toString());
 
         ActorRef groupActor = getContext().actorOf(
-                GroupActor.props(createGroup.groupName, getSender(), groupCreatorUsername),
-                String.format("Group__%s", createGroup.groupName));
+                GroupActor.props(createGroupRequest.groupName, getSender(), groupCreatorUsername),
+                String.format("Group__%s", createGroupRequest.groupName));
 
         getContext().watch(groupActor);
-        groupNamesToActors.put(createGroup.groupName, groupActor);
+        groupNamesToActors.put(createGroupRequest.groupName, groupActor);
 
-        System.out.println(String.format("Group %s created", createGroup.groupName));
+        getSender().tell(
+                new CommandFailure(String.format("%s created successfully!", createGroupRequest.groupName)),
+                getSelf()
+        );
+        System.out.println(String.format("Group %s created", createGroupRequest.groupName));
+    }
+
+    private void onLeaveGroup(LeaveGroupRequest leaveGroupRequest) {
+        groupNamesToActors.get(leaveGroupRequest.groupName).forward(leaveGroupRequest, getContext());
     }
 
     private void onGroupSendText(GroupSendText groupSendText) {
@@ -143,5 +136,26 @@ public class Manager extends AbstractActor {
         }
 
         groupNamesToActors.get(groupSendText.groupName).forward(groupSendText, getContext());
+    }
+
+    private void onActorTermination(Terminated t) {
+        ActorRef terminatedActor = t.getActor();
+        System.out.println(terminatedActor.path().toString());
+
+        String terminatedGroupName = getGroupNameByActor(terminatedActor);
+        if (terminatedGroupName != null && this.groupNamesToActors.containsValue(terminatedGroupName)) {
+            this.groupNamesToActors.remove(terminatedGroupName);
+            System.out.println("onActorTermination: Group %s terminated");
+            return;
+        }
+
+        String terminatedUsername = getUsernameByPath(terminatedActor.path().toString());
+        if (terminatedUsername != null && this.usersToAddresses.containsValue(terminatedUsername)) {
+            this.usersToAddresses.remove(terminatedUsername);
+            System.out.println("onActorTermination: User %s terminated");
+            return;
+        }
+
+        System.out.println("onActorTermination: Something wrong happened");
     }
 }

@@ -27,7 +27,6 @@ public class GroupActor extends AbstractActor {
     }
 
     private class UserInfo {
-
         public String username;
         public Previledges previledges;
 
@@ -40,7 +39,7 @@ public class GroupActor extends AbstractActor {
     private final String groupName;
     private final ActorRef groupCreatorActor;
     private final AbstractActor.Receive receiverBuilder;
-    private final Router router;
+    private Router router;
     private final HashMap<ActorRef, UserInfo> actorToUserInfo;
 
     public GroupActor(String groupName, ActorRef groupCreatorActor, String groupCreatorUsername) {
@@ -48,13 +47,14 @@ public class GroupActor extends AbstractActor {
         this.groupCreatorActor = groupCreatorActor;
 
         this.receiverBuilder = receiveBuilder()
+                .match(LeaveGroupRequest.class, this::onLeaveGroupRequest)
                 .match(GroupSendText.class, this::OnGroupSendText)
                 .match(Terminated.class, this::onTerminated)
                 .build();
 
         this.router = new Router(new BroadcastRoutingLogic());
         getContext().watch(groupCreatorActor);
-        this.router.addRoutee(groupCreatorActor);
+        this.router = this.router.addRoutee(groupCreatorActor);
 
         this.actorToUserInfo = new HashMap<>();
         this.actorToUserInfo.put(groupCreatorActor, new UserInfo(groupCreatorUsername, Previledges.ADMIN));
@@ -63,6 +63,28 @@ public class GroupActor extends AbstractActor {
     @Override
     public Receive createReceive() {
         return this.receiverBuilder;
+    }
+
+    private void onLeaveGroupRequest(LeaveGroupRequest leaveGroupRequest) {
+        if (leaveGroupRequest.groupName != this.groupName) {
+            System.out.println("Manager did something wrong");
+            return;
+        }
+
+        if (!this.actorToUserInfo.containsValue(getSender())) {
+            String errorMessage = String.format("%s is not in %s!", leaveGroupRequest.leavingUsername, leaveGroupRequest.groupName);
+            System.out.println(errorMessage);
+            getSender().tell(new CommandFailure(errorMessage), getSelf());
+            return;
+        }
+
+        UserInfo leavingUser = this.actorToUserInfo.get(getSender());
+        switch (leavingUser.previledges) {
+            case ADMIN:
+//                this.router.route(new );
+                getContext().stop(getSelf());
+                break;
+        }
     }
 
     private void OnGroupSendText(GroupSendText sendTextCommand) {
@@ -74,10 +96,10 @@ public class GroupActor extends AbstractActor {
         // Validate Previledges
 
         UserInfo senderInfo = this.actorToUserInfo.get(getSender());
-        router.route(new NewGroupText(sendTextCommand.groupName, "12313", sendTextCommand.message), getSender());
+        router.route(new NewGroupText(sendTextCommand.groupName, senderInfo.username, sendTextCommand.message), getSender());
     }
 
     private void onTerminated(Terminated t) {
-        this.router.removeRoutee(t.getActor());
+        this.router = this.router.removeRoutee(t.getActor());
     }
 }
