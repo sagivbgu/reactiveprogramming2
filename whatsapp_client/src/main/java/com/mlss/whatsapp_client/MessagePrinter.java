@@ -5,6 +5,8 @@ import java.util.Date;
 
 // TODO: This should be actor?
 public class MessagePrinter {
+    public static final String USER_SENDER = "user";
+
     public static void print(String message, String sender) {
         print(message, sender, "user");
     }

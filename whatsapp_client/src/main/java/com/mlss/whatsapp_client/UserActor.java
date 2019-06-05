@@ -3,12 +3,12 @@ package com.mlss.whatsapp_client;
 import akka.actor.*;
 
 import com.mlss.whatsapp_common.GroupMessages.*;
+import com.mlss.whatsapp_common.ManagerCommands;
 import com.mlss.whatsapp_common.ManagerCommands.*;
 import com.mlss.whatsapp_common.UserFeatures.*;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Date;
@@ -38,43 +38,6 @@ public class UserActor extends AbstractActor {
     private HashMap<String, ActorSelection> usersToActors;
     private HashMap<String, Queue<Message>> usersToMessageQueues;
 
-    static abstract public class Message implements Serializable {
-        public String sender;
-
-        public Message() {
-        }
-    }
-
-    static public class TextMessage extends Message implements Serializable {
-        public final String message;
-
-        public TextMessage(String message) {
-            super();
-            this.message = message;
-        }
-    }
-
-    static public class BinaryMessage extends Message implements Serializable {
-        public final byte[] message;
-        public final String fileName;
-
-        public BinaryMessage(byte[] message, String fileName) {
-            super();
-            this.message = message;
-            this.fileName = fileName;
-        }
-    }
-
-    static public class SendMessageRequest implements Serializable {
-        public final String target;
-        public final Message message;
-
-        public SendMessageRequest(String target, Message message) {
-            this.target = target;
-            this.message = message;
-        }
-    }
-
     public UserActor() {
         String managingServerAddress = ConfigFactory.load().getString("akka.remote.managing-server");
         this.managingServer = getContext().actorSelection(managingServerAddress);
@@ -100,11 +63,12 @@ public class UserActor extends AbstractActor {
                 .match(UserNotFound.class, this::onUserNotFound)
                 .match(SendMessageRequest.class, this::onSendMessageRequest)
                 .match(TextMessage.class, this::onTextMessage)
-                .match(BinaryMessage.class, this::onBinaryMessage)
+                .match(BinaryMessage.class, msg -> onBinaryMessage(msg, MessagePrinter.USER_SENDER))
                 .match(CreateGroupRequest.class, createGroupRequest -> this.managingServer.tell(createGroupRequest, getSelf()))
                 .match(LeaveGroupRequest.class, this::onLeaveGroupRequest)
-                .match(GroupSendText.class, groupSendText -> this.managingServer.tell(groupSendText, getSelf()))
-                .match(NewGroupText.class, newGroupText -> MessagePrinter.print(newGroupText.message, newGroupText.senderUsername, newGroupText.groupName))
+                .match(GroupSendMessage.class, this::onGroupSendMessage)
+                .match(GroupTextMessage.class, msg -> MessagePrinter.print(msg.message, msg.senderUsername, msg.groupName))
+                .match(GroupBinaryMessage.class, groupMessage -> onBinaryMessage(groupMessage.message, groupMessage.groupName))
                 .match(CommandFailure.class, failure -> System.out.println(failure.failureMessage))
                 .build();
     }
@@ -125,6 +89,7 @@ public class UserActor extends AbstractActor {
     }
 
     // TODO: Move to common utils
+
     private boolean validateActorOnline(ActorSelection actor) {
         Timeout timeout = new Timeout(5, TimeUnit.SECONDS);
         Future<ActorRef> rt = actor.resolveOne(timeout);
@@ -137,13 +102,11 @@ public class UserActor extends AbstractActor {
             return false;
         }
     }
-
     private void onConnectionAccepted(ConnectionAccepted response) {
         this.username = response.acceptedUsername;
         getContext().become(this.connectedState);
         System.out.println(String.format("%s has connected successfully!", response.acceptedUsername));
     }
-
     private void onConnectionDenied(ConnectionDenied response) {
         System.out.println(String.format("%s is in use!", response.deniedUsername));
         getContext().become(this.disconnectedState);
@@ -188,6 +151,11 @@ public class UserActor extends AbstractActor {
         }
     }
 
+    private void onGroupSendMessage(GroupSendMessage groupSendMessage) {
+        groupSendMessage.message.sender = username;
+        this.managingServer.tell(groupSendMessage, getSelf());
+    }
+
     private Queue<Message> getUserMessagesQueue(String username) {
         if (!this.usersToMessageQueues.containsKey(username)) {
             this.usersToMessageQueues.put(username, new LinkedList<>());
@@ -199,11 +167,11 @@ public class UserActor extends AbstractActor {
         MessagePrinter.print(message.message, message.sender);
     }
 
-    private void onBinaryMessage(BinaryMessage message) {
+    private void onBinaryMessage(BinaryMessage message, String groupName) {
         String filePath = System.getProperty("user.dir") + File.separator + new Date().getTime() + "-" + message.fileName;
         try {
             Files.write(Paths.get(filePath), message.message);
-            MessagePrinter.print(String.format("File received: %s", filePath), message.sender);
+            MessagePrinter.print(String.format("File received: %s", filePath), message.sender, groupName);
         } catch (IOException e) {
             System.out.println(String.format("Error writing new file from %s to %s", message.sender, filePath));
         }

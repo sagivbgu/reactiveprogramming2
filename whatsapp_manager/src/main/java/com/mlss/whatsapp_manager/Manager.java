@@ -33,7 +33,7 @@ public class Manager extends AbstractActor {
                 .match(UserAddressRequest.class, this::onUserAddressRequest)
                 .match(CreateGroupRequest.class, this::onCreateGroup)
                 .match(LeaveGroupRequest.class, this::onLeaveGroup)
-                .match(GroupSendText.class, this::onGroupSendText)
+                .match(GroupSendMessage.class, this::onGroupSendMessage)
                 .match(Terminated.class, this::onActorTermination)
                 .build();
     }
@@ -127,15 +127,14 @@ public class Manager extends AbstractActor {
         groupNamesToActors.get(leaveGroupRequest.groupName).forward(leaveGroupRequest, getContext());
     }
 
-    private void onGroupSendText(GroupSendText groupSendText) {
-        if (!groupNamesToActors.containsKey(groupSendText.groupName)) {
+    private void onGroupSendMessage(GroupSendMessage groupSendMessage) {
+        if (!groupNamesToActors.containsKey(groupSendMessage.groupName)) {
             getSender().tell(
-                    new CommandFailure(String.format("%s does not exist!", groupSendText.groupName)), getSelf()
+                    new CommandFailure(String.format("Group %s does not exist!", groupSendMessage.groupName)), getSelf()
             );
-            return;
+        } else {
+            groupNamesToActors.get(groupSendMessage.groupName).forward(groupSendMessage.message, getContext());
         }
-
-        groupNamesToActors.get(groupSendText.groupName).forward(groupSendText, getContext());
     }
 
     private void onActorTermination(Terminated t) {

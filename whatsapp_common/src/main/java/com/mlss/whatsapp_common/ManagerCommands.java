@@ -46,12 +46,49 @@ public class ManagerCommands {
         }
     }
 
-    static public class GroupSendText implements Serializable {
-        public final String groupName;
+    static abstract public class Message implements Serializable {
+        public String sender;
+
+        public Message() {
+        }
+    }
+
+    static public class TextMessage extends Message implements Serializable {
         public final String message;
 
-        public GroupSendText(String groupName, String message) {
+        public TextMessage(String message) {
+            super();
+            this.message = message;
+        }
+    }
+
+    static public class BinaryMessage extends Message implements Serializable {
+        public final byte[] message;
+        public final String fileName;
+
+        public BinaryMessage(byte[] message, String fileName) {
+            super();
+            this.message = message;
+            this.fileName = fileName;
+        }
+    }
+
+    static public class GroupSendMessage implements Serializable {
+        public final String groupName;
+        public final Message message;
+
+        public GroupSendMessage(String groupName, Message message) {
             this.groupName = groupName;
+            this.message = message;
+        }
+    }
+
+    static public class SendMessageRequest implements Serializable {
+        public final String target;
+        public final Message message;
+
+        public SendMessageRequest(String target, Message message) {
+            this.target = target;
             this.message = message;
         }
     }
