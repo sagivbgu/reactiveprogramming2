@@ -27,6 +27,14 @@ public class GroupMessages {
         }
     }
 
+    static public class InviteResponse implements Serializable {
+        public final String response;
+
+        public InviteResponse(String response) {
+            this.response = response;
+        }
+    }
+
     public GroupMessages() {
     }
 }

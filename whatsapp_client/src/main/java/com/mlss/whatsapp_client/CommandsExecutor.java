@@ -4,8 +4,8 @@ import akka.actor.ActorRef;
 import com.mlss.whatsapp_common.ManagerCommands;
 import com.mlss.whatsapp_common.UserFeatures.*;
 import com.mlss.whatsapp_common.ManagerCommands.*;
-import com.mlss.whatsapp_common.UserFeatures.ConnectRequest;
-import scala.collection.immutable.IntMap;
+import com.mlss.whatsapp_client.UserActor.*;
+import com.mlss.whatsapp_common.GroupMessages.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -50,6 +50,10 @@ public class CommandsExecutor {
         switch (commandWords[0]) {
             case "exit":
                 throw new ExitCommandException();
+            case "Yes":
+            case "No":
+                runInviteResponseCommand(commandWords);
+                break;
             case "/user":
                 runUserCommand(commandWords);
                 break;
@@ -59,6 +63,14 @@ public class CommandsExecutor {
             default:
                 throw new IllegalCommandException();
         }
+    }
+
+    private void runInviteResponseCommand(String[] commandWords) throws IllegalCommandException {
+        if (commandWords.length != 1) {
+            throw new IllegalCommandException();
+        }
+
+        this.userActor.tell(new InviteResponse(commandWords[0]), ActorRef.noSender());
     }
 
     private void runUserCommand(String[] commandWords) throws IllegalCommandException {
