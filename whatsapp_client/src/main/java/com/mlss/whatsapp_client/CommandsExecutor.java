@@ -1,10 +1,11 @@
 package com.mlss.whatsapp_client;
 
 import akka.actor.ActorRef;
+import com.mlss.whatsapp_common.ManagerCommands;
 import com.mlss.whatsapp_common.UserFeatures.*;
 import com.mlss.whatsapp_common.ManagerCommands.*;
-import com.mlss.whatsapp_client.UserActor.*;
 import com.mlss.whatsapp_common.UserFeatures.ConnectRequest;
+import scala.collection.immutable.IntMap;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -104,9 +105,9 @@ public class CommandsExecutor {
             throw new IllegalCommandException();
         }
 
+        String target = commandWords[2];
         String message = joinWords(commandWords, 3);
-
-        this.userActor.tell(new SendMessageRequest(commandWords[2], new TextMessage(message)), ActorRef.noSender());
+        this.userActor.tell(new SendMessageRequest(target, new TextMessage(message)), ActorRef.noSender());
     }
 
     private void runSendFileToUserCommand(String[] commandWords) throws IllegalCommandException {
@@ -114,23 +115,29 @@ public class CommandsExecutor {
             throw new IllegalCommandException();
         }
 
-        String filePath = joinWords(commandWords, 3);
-
         String target = commandWords[2];
-        byte[] fileBytes;
+        String filePath = joinWords(commandWords, 3);
+        BinaryMessage binaryMessage = getBinaryMessage(filePath);
+
+        if (binaryMessage != null) {
+            this.userActor.tell(new SendMessageRequest(target, binaryMessage), ActorRef.noSender());
+        }
+    }
+
+    private BinaryMessage getBinaryMessage(String filePath) {
         if (Files.notExists(Paths.get(filePath))) {
             System.out.println(String.format("%s does not exist!", filePath));
-            return;
+            return null;
         }
 
         String fileName = Paths.get(filePath).getFileName().toString();
 
         try {
-            fileBytes = Files.readAllBytes(Paths.get(filePath));
-            this.userActor.tell(new SendMessageRequest(target, new BinaryMessage(fileBytes, fileName)),
-                    ActorRef.noSender());
+            byte[] fileBytes = Files.readAllBytes(Paths.get(filePath));
+            return new BinaryMessage(fileBytes, fileName);
         } catch (IOException e) {
             System.out.println(String.format("Error reading file %s", filePath));
+            return null;
         }
     }
 
@@ -147,17 +154,7 @@ public class CommandsExecutor {
                 runGroupLeaveCommand(commandWords);
                 break;
             case "send":
-                if (commandWords.length < 3) {
-                    throw new IllegalCommandException();
-                }
-
-                if (commandWords[2].equals("text")) {
-                    runGroupSendTextCommand(commandWords);
-                } else if (commandWords[2].equals("file")) {
-//                    runGroupSendTextCommand(commandWords);
-                } else {
-                    throw new IllegalCommandException();
-                }
+                runGroupSendCommand(commandWords);
                 break;
             default:
                 throw new IllegalCommandException();
@@ -174,12 +171,26 @@ public class CommandsExecutor {
     }
 
     private void runGroupLeaveCommand(String[] commandWords) throws IllegalCommandException {
-        // TODO
-        if (commandWords.length != 3) {
+        if (commandWords.length < 3) {
             throw new IllegalCommandException();
         }
 
-        this.userActor.tell(new LeaveGroupRequest(commandWords[2]), ActorRef.noSender());
+        String groupName = joinWords(commandWords, 2);
+        this.userActor.tell(new LeaveGroupRequest(groupName), ActorRef.noSender());
+    }
+
+    private void runGroupSendCommand(String[] commandWords) throws IllegalCommandException {
+        if (commandWords.length < 3) {
+            throw new IllegalCommandException();
+        }
+
+        if (commandWords[2].equals("text")) {
+            runGroupSendTextCommand(commandWords);
+        } else if (commandWords[2].equals("file")) {
+            runGroupSendFileCommand(commandWords);
+        } else {
+            throw new IllegalCommandException();
+        }
     }
 
     private void runGroupSendTextCommand(String[] commandWords) throws IllegalCommandException {
@@ -188,8 +199,22 @@ public class CommandsExecutor {
         }
 
         String groupName = commandWords[3];
-        String message = joinWords(commandWords, 4);
-        this.userActor.tell(new GroupSendText(groupName, message), ActorRef.noSender());
+        TextMessage message = new TextMessage(joinWords(commandWords, 4));
+        this.userActor.tell(new GroupSendMessage(groupName, message), ActorRef.noSender());
+    }
+
+    private void runGroupSendFileCommand(String[] commandWords) throws IllegalCommandException {
+        if (commandWords.length < 5) {
+            throw new IllegalCommandException();
+        }
+
+        String groupName = commandWords[3];
+        String filePath = joinWords(commandWords, 4);
+        BinaryMessage binaryMessage = getBinaryMessage(filePath);
+
+        if (binaryMessage != null) {
+            this.userActor.tell(new GroupSendMessage(groupName, binaryMessage), ActorRef.noSender());
+        }
     }
 
     private String joinWords(String[] commandWords, int fromIndex) {

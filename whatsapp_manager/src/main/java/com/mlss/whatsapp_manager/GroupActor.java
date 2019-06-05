@@ -11,6 +11,7 @@ import akka.routing.Router;
 
 import com.mlss.whatsapp_common.GroupMessages.*;
 import com.mlss.whatsapp_common.ManagerCommands.*;
+import com.mlss.whatsapp_common.UserFeatures;
 import com.mlss.whatsapp_common.UserFeatures.*;
 
 
@@ -48,7 +49,8 @@ public class GroupActor extends AbstractActor {
 
         this.receiverBuilder = receiveBuilder()
                 .match(LeaveGroupRequest.class, this::onLeaveGroupRequest)
-                .match(GroupSendText.class, this::OnGroupSendText)
+                .match(TextMessage.class, this::OnGroupSendText)
+                .match(BinaryMessage.class, this::OnGroupSendFile)
                 .match(Terminated.class, this::onTerminated)
                 .build();
 
@@ -87,16 +89,26 @@ public class GroupActor extends AbstractActor {
         }
     }
 
-    private void OnGroupSendText(GroupSendText sendTextCommand) {
+    private void OnGroupSendText(TextMessage message) {
+        if (validateUserInGroup()) {
+        // Validate Previledges
+        router.route(new GroupTextMessage(this.groupName, message.sender, message.message), getSender());
+        }
+    }
+
+    private void OnGroupSendFile(BinaryMessage message) {
+        if (validateUserInGroup()) {
+        // Validate Previledges
+        router.route(new GroupBinaryMessage(this.groupName, message), getSender());
+        }
+    }
+
+    private boolean validateUserInGroup() {
         if (!this.actorToUserInfo.containsKey(getSender())) {
             getSender().tell(new CommandFailure(String.format("You are not part of %s!", this.groupName)), getSelf());
-            return;
+            return false;
         }
-
-        // Validate Previledges
-
-        UserInfo senderInfo = this.actorToUserInfo.get(getSender());
-        router.route(new NewGroupText(sendTextCommand.groupName, senderInfo.username, sendTextCommand.message), getSender());
+        return true;
     }
 
     private void onTerminated(Terminated t) {
