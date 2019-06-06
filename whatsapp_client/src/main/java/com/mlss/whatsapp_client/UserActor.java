@@ -34,6 +34,7 @@ public class UserActor extends AbstractActor {
     private final Receive disconnectedState;
     private final Receive connectingState;
     private final Receive connectedState;
+    private final Receive inviteState;
     private HashMap<String, ActorSelection> usersToActors;
     private HashMap<String, Queue<Message>> usersToMessageQueues;
 
@@ -42,10 +43,6 @@ public class UserActor extends AbstractActor {
         this.managingServer = getContext().actorSelection(managingServerAddress);
         this.usersToActors = new HashMap<>();
         this.usersToMessageQueues = new HashMap<>();
-
-        // TODO: Add inviteState
-        // Problem: This means that CommandExecuter will treat Yes/No as a valid command and won't print Illegal command
-        // Solution: If the user isn't in invite state, print here Illegal command.
 
         this.disconnectedState = receiveBuilder()
                 .match(ConnectRequest.class, this::onConnectRequest)
@@ -72,7 +69,14 @@ public class UserActor extends AbstractActor {
                 .match(GroupSendMessage.class, this::onGroupSendMessage)
                 .match(GroupTextMessage.class, msg -> MessagePrinter.print(msg.message, msg.senderUsername, msg.groupName))
                 .match(GroupBinaryMessage.class, groupMessage -> onBinaryMessage(groupMessage.message, groupMessage.groupName))
+                .match(GroupInviteUserCommand.class, inviteCommand -> this.managingServer.tell(inviteCommand, getSelf()))
                 .match(CommandFailure.class, failure -> System.out.println(failure.failureMessage))
+                .build();
+
+        // TODO: Add inviteState
+        // Problem: This means that CommandExecuter will treat Yes/No as a valid command and won't print Illegal command
+        // Solution: If the user isn't in invite state, print here Illegal command.
+        this.inviteState = receiveBuilder()
                 .build();
     }
 

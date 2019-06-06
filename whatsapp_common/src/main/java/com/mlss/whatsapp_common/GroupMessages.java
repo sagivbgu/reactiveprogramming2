@@ -2,6 +2,7 @@ package com.mlss.whatsapp_common;
 
 
 import java.io.Serializable;
+
 import com.mlss.whatsapp_common.ManagerCommands.*;
 
 public class GroupMessages {
@@ -27,10 +28,20 @@ public class GroupMessages {
         }
     }
 
-    static public class InviteResponse implements Serializable {
+    static public class GroupInviteUserCommand implements Serializable {
+        public final String groupName;
+        public final String invitedUsername;
+
+        public GroupInviteUserCommand(String groupName, String invitedUsername) {
+            this.groupName = groupName;
+            this.invitedUsername = invitedUsername;
+        }
+    }
+
+    static public class GroupInviteResponse implements Serializable {
         public final String response;
 
-        public InviteResponse(String response) {
+        public GroupInviteResponse(String response) {
             this.response = response;
         }
     }

@@ -85,7 +85,7 @@ public class GroupActor extends AbstractActor {
         }
 
         if (!this.actorToUserInfo.containsKey(getSender())) {
-            String errorMessage = String.format("User %s is not in group %s", leaveGroupRequest.leavingUsername, leaveGroupRequest.groupName);
+            String errorMessage = String.format("%s is not in %s!", leaveGroupRequest.leavingUsername, leaveGroupRequest.groupName);
             System.out.println(errorMessage);
             getSender().tell(new CommandFailure(errorMessage), getSelf());
             return;

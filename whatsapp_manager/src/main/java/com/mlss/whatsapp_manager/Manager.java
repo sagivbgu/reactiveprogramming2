@@ -5,6 +5,7 @@ import akka.actor.ActorRef;
 import akka.actor.Props;
 import akka.actor.Terminated;
 
+import com.mlss.whatsapp_common.GroupMessages.*;
 import com.mlss.whatsapp_common.ManagerCommands.*;
 import com.mlss.whatsapp_common.UserFeatures.*;
 
@@ -34,8 +35,14 @@ public class Manager extends AbstractActor {
                 .match(CreateGroupRequest.class, this::onCreateGroup)
                 .match(LeaveGroupRequest.class, this::onLeaveGroup)
                 .match(GroupSendMessage.class, this::onGroupSendMessage)
+                .match(GroupInviteUserCommand.class, this::onGroupInviteUserCommand)
                 .match(Terminated.class, this::onActorTermination)
                 .build();
+    }
+
+    private void onGroupInviteUserCommand(GroupInviteUserCommand inviteUserCommand) {
+//        if
+//        this.groupNamesToActors[inviteUserCommand.groupName].f
     }
 
     private void onConnectRequest(ConnectRequest request) {
@@ -125,7 +132,6 @@ public class Manager extends AbstractActor {
     }
 
     private void onLeaveGroup(LeaveGroupRequest leaveGroupRequest) {
-        // TODO: What if the creator leaves?
         groupNamesToActors.get(leaveGroupRequest.groupName).forward(leaveGroupRequest, getContext());
     }
 
@@ -158,5 +164,11 @@ public class Manager extends AbstractActor {
 
         // TODO: Delete this
         System.out.println("onActorTermination: Something wrong happened");
+    }
+
+    private void validateGroupExists(String groupName) {
+        if (!this.groupNamesToActors.containsKey(groupName)) {
+            getSender().tell(new CommandFailure(String.format("")), getSelf());
+        }
     }
 }

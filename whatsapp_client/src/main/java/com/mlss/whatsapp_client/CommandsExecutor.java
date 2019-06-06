@@ -1,10 +1,8 @@
 package com.mlss.whatsapp_client;
 
 import akka.actor.ActorRef;
-import com.mlss.whatsapp_common.ManagerCommands;
 import com.mlss.whatsapp_common.UserFeatures.*;
 import com.mlss.whatsapp_common.ManagerCommands.*;
-import com.mlss.whatsapp_client.UserActor.*;
 import com.mlss.whatsapp_common.GroupMessages.*;
 
 import java.io.IOException;
@@ -70,7 +68,7 @@ public class CommandsExecutor {
             throw new IllegalCommandException();
         }
 
-        this.userActor.tell(new InviteResponse(commandWords[0]), ActorRef.noSender());
+        this.userActor.tell(new GroupInviteResponse(commandWords[0]), ActorRef.noSender());
     }
 
     private void runUserCommand(String[] commandWords) throws IllegalCommandException {
@@ -168,6 +166,9 @@ public class CommandsExecutor {
             case "send":
                 runGroupSendCommand(commandWords);
                 break;
+            case "user":
+                runGroupUserCommand(commandWords);
+                break;
             default:
                 throw new IllegalCommandException();
         }
@@ -226,6 +227,28 @@ public class CommandsExecutor {
 
         if (binaryMessage != null) {
             this.userActor.tell(new GroupSendMessage(groupName, binaryMessage), ActorRef.noSender());
+        }
+    }
+
+    private void runGroupUserCommand(String[] commandWords) throws IllegalCommandException {
+        if (commandWords.length < 5) {
+            throw new IllegalCommandException();
+        }
+
+        String groupUserCommand = commandWords[2];
+        String groupName = commandWords[3];
+        String targetUsername = commandWords[4];
+
+        switch (groupUserCommand) {
+            case "invite":
+                this.userActor.tell(new GroupInviteUserCommand(groupName, targetUsername), ActorRef.noSender());
+                break;
+            case "mute":
+                if (commandWords.length != 6) {
+                    throw new IllegalCommandException();
+                }
+            default:
+                throw new IllegalCommandException();
         }
     }
 
