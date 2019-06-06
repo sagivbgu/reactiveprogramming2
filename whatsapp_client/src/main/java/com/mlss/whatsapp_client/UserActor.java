@@ -76,7 +76,7 @@ public class UserActor extends AbstractActor {
                 .match(GroupInviteMessage.class, this::onGroupInviteMessage)
                 .match(MuteUserCommand.class, command -> this.managingServer.tell(command, getSelf()))
                 .match(CommandFailure.class, failure -> System.out.println(failure.failureMessage))
-                .match(GroupInviteResponse.class, o -> System.out.println("Illegal command"))
+                .match(GroupInviteResponse.class, o -> System.out.println("Illegal command"))  // TODO: Why?
                 .build();
 
         this.invitedState = receiveBuilder()
