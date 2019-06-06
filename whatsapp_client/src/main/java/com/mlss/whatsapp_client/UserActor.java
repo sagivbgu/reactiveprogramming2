@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 
 public class UserActor extends AbstractActor {
     static public Props props() {
-        return Props.create(UserActor.class, () -> new UserActor());
+        return Props.create(UserActor.class, UserActor::new);
     }
 
     private String username;
@@ -75,14 +75,14 @@ public class UserActor extends AbstractActor {
                 .match(GroupRemoveUserCommand.class, removeUserCommand -> this.managingServer.tell(removeUserCommand, getSelf()))
                 .match(GroupInviteMessage.class, this::onGroupInviteMessage)
                 .match(MuteUserCommand.class, command -> this.managingServer.tell(command, getSelf()))
-                .match(CommandFailure.class, failure -> System.out.println(failure.failureMessage))
+                .match(GeneralMessage.class, failure -> System.out.println(failure.failureMessage))
                 .match(GroupInviteResponse.class, o -> System.out.println("Illegal command"))  // TODO: Why?
                 .build();
 
         this.invitedState = receiveBuilder()
                 .match(GroupInviteMessage.class, this::onGroupInviteMessage)
                 .match(GroupInviteResponse.class, this::onGroupInviteResponse)
-                .match(CommandFailure.class, failure -> System.out.println(failure.failureMessage))
+                .match(GeneralMessage.class, failure -> System.out.println(failure.failureMessage))
                 .matchAny(o -> System.out.println("Illegal command."))
                 .build();
     }

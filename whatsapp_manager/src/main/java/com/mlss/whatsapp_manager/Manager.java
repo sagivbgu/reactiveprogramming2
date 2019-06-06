@@ -15,7 +15,7 @@ import java.util.Map;
 
 public class Manager extends AbstractActor {
     static public Props props() {
-        return Props.create(Manager.class, () -> new Manager());
+        return Props.create(Manager.class, Manager::new);
     }
 
     private HashMap<String, String> usersToAddresses;
@@ -117,7 +117,7 @@ public class Manager extends AbstractActor {
     private void onCreateGroup(CreateGroupRequest createGroupRequest) {
         if (this.groupNamesToActors.containsKey(createGroupRequest.groupName)) {
             getSender().tell(
-                    new CommandFailure(String.format("%s already exists!", createGroupRequest.groupName)),
+                    new GeneralMessage(String.format("%s already exists!", createGroupRequest.groupName)),
                     getSelf()
             );
             return;
@@ -132,9 +132,9 @@ public class Manager extends AbstractActor {
         getContext().watch(groupActor);
         groupNamesToActors.put(createGroupRequest.groupName, groupActor);
 
-        // TODO: Why is it called "CommandFailure"? It's not a failure
+        // TODO: Why is it called "GeneralMessage"? It's not a failure
         getSender().tell(
-                new CommandFailure(String.format("%s created successfully!", createGroupRequest.groupName)),
+                new GeneralMessage(String.format("%s created successfully!", createGroupRequest.groupName)),
                 getSelf()
         );
         System.out.println(String.format("Group %s created", createGroupRequest.groupName));
@@ -144,7 +144,7 @@ public class Manager extends AbstractActor {
         ActorRef groupActor = groupNamesToActors.get(groupName);
         if (groupActor == null) {
             getSender().tell(
-                    new CommandFailure(String.format("%s does not exist!", groupName)), getSelf());
+                    new GeneralMessage(String.format("%s does not exist!", groupName)), getSelf());
         } else {
             groupActor.forward(message, getContext());
         }
@@ -173,7 +173,7 @@ public class Manager extends AbstractActor {
 
     private boolean validateGroupExists(String groupName) {
         if (!this.groupNamesToActors.containsKey(groupName)) {
-            getSender().tell(new CommandFailure(String.format("%s does not exist!", groupName)), getSelf());
+            getSender().tell(new GeneralMessage(String.format("%s does not exist!", groupName)), getSelf());
             return false;
         }
         return true;
