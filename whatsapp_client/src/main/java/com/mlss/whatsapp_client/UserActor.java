@@ -205,6 +205,7 @@ public class UserActor extends AbstractActor {
             return;
         }
 
+        inviteResponse.invitedUsername = this.username;
         ActorRef groupActor = this.groupInvites.remove();
         groupActor.tell(inviteResponse, getSelf());
 
