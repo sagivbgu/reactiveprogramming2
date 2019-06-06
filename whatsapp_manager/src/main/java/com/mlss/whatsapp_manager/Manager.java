@@ -41,9 +41,17 @@ public class Manager extends AbstractActor {
                 .build();
     }
 
+    // TODO: Check what happens if user got invite, but meanwhile the group was terminated
+
     private void onGroupInviteUserCommand(GroupInviteUserCommand inviteUserCommand) {
-//        if
-//        this.groupNamesToActors[inviteUserCommand.groupName].f
+        if (validateGroupExists(inviteUserCommand.groupName)) {
+            inviteUserCommand.invitedUserAddress = null;
+            if (this.usersToAddresses.containsKey(inviteUserCommand.invitedUsername)) {
+                inviteUserCommand.invitedUserAddress = this.usersToAddresses.get(inviteUserCommand.invitedUsername);
+            }
+
+            this.groupNamesToActors.get(inviteUserCommand.groupName).forward(inviteUserCommand, getContext());
+        }
     }
 
     private void onConnectRequest(ConnectRequest request) {
@@ -161,5 +169,13 @@ public class Manager extends AbstractActor {
 
         // TODO: Delete this
         System.out.println("onActorTermination: Something wrong happened");
+    }
+
+    private boolean validateGroupExists(String groupName) {
+        if (!this.groupNamesToActors.containsKey(groupName)) {
+            getSender().tell(new CommandFailure(String.format("%s does not exist!", groupName)), getSelf());
+            return false;
+        }
+        return true;
     }
 }

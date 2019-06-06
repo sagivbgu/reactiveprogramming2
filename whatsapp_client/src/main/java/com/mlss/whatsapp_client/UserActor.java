@@ -34,9 +34,10 @@ public class UserActor extends AbstractActor {
     private final Receive disconnectedState;
     private final Receive connectingState;
     private final Receive connectedState;
-    private final Receive inviteState;
+    private final Receive invitedState;
     private HashMap<String, ActorSelection> usersToActors;
     private HashMap<String, Queue<Message>> usersToMessageQueues;
+    private Queue<ActorRef> groupInvites;
 
     public UserActor() {
         String managingServerAddress = ConfigFactory.load().getString("akka.remote.managing-server");
@@ -69,15 +70,16 @@ public class UserActor extends AbstractActor {
                 .match(GroupSendMessage.class, this::onGroupSendMessage)
                 .match(GroupTextMessage.class, msg -> MessagePrinter.print(msg.message, msg.senderUsername, msg.groupName))
                 .match(GroupBinaryMessage.class, groupMessage -> onBinaryMessage(groupMessage.message, groupMessage.groupName))
-                .match(GroupInviteUserCommand.class, command -> this.managingServer.tell(command, getSelf()))
+                .match(GroupInviteUserCommand.class, inviteCommand -> this.managingServer.tell(inviteCommand, getSelf()))
+                .match(GroupInviteMessage.class, this::onGroupInviteMessage)
                 .match(MuteUserCommand.class, command -> this.managingServer.tell(command, getSelf()))
                 .match(CommandFailure.class, failure -> System.out.println(failure.failureMessage))
                 .build();
 
-        // TODO: Add inviteState
-        // Problem: This means that CommandExecuter will treat Yes/No as a valid command and won't print Illegal command
-        // Solution: If the user isn't in invite state, print here Illegal command.
-        this.inviteState = receiveBuilder()
+        this.invitedState = receiveBuilder()
+                .match(GroupInviteMessage.class, this::onGroupInviteMessage)
+                .match(GroupInviteResponse.class, this::onGroupInviteResponse)
+                .matchAny(o -> System.out.println("Illegal command."))
                 .build();
     }
 
@@ -109,11 +111,13 @@ public class UserActor extends AbstractActor {
             return false;
         }
     }
+
     private void onConnectionAccepted(ConnectionAccepted response) {
         this.username = response.acceptedUsername;
         getContext().become(this.connectedState);
         System.out.println(String.format("%s has connected successfully!", response.acceptedUsername));
     }
+
     private void onConnectionDenied(ConnectionDenied response) {
         System.out.println(String.format("%s is in use!", response.deniedUsername));
         getContext().become(this.disconnectedState);
@@ -177,6 +181,31 @@ public class UserActor extends AbstractActor {
             MessagePrinter.print(String.format("File received: %s", filePath), message.sender, groupName);
         } catch (IOException e) {
             System.out.println(String.format("Error writing new file from %s to %s", message.sender, filePath));
+        }
+    }
+
+    private void onGroupInviteMessage(GroupInviteMessage inviteMessage) {
+        MessagePrinter.print(
+                String.format("You have been invited to %s, Accept?", inviteMessage.groupName),
+                inviteMessage.inviterUsername,
+                inviteMessage.groupName
+        );
+
+        this.groupInvites.add(getSender());
+        getContext().become(this.invitedState);
+    }
+
+    private void onGroupInviteResponse(GroupInviteResponse inviteResponse) {
+        if (this.groupInvites.size() == 0) {
+            System.out.println("Illegal command.");
+            return;
+        }
+
+        ActorRef groupActor = this.groupInvites.remove();
+        groupActor.tell(inviteResponse, getSelf());
+
+        if (this.groupInvites.size() == 0) {
+            getContext().become(this.connectedState);
         }
     }
 }
