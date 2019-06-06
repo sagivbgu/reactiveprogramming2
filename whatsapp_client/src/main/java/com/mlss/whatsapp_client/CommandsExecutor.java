@@ -246,6 +246,9 @@ public class CommandsExecutor {
             case "invite":
                 this.userActor.tell(new GroupInviteUserCommand(groupName, targetUsername), ActorRef.noSender());
                 break;
+            case "remove":
+                this.userActor.tell(new GroupRemoveUserCommand(groupName, targetUsername), ActorRef.noSender());
+                break;
             case "mute":
                 runGroupMuteCommand(commandWords);
                 break;
