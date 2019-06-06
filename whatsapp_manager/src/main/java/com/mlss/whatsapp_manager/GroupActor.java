@@ -3,10 +3,7 @@ package com.mlss.whatsapp_manager;
 import java.util.HashMap;
 import java.util.Map;
 
-import akka.actor.AbstractActor;
-import akka.actor.ActorRef;
-import akka.actor.Props;
-import akka.actor.Terminated;
+import akka.actor.*;
 import akka.routing.BroadcastRoutingLogic;
 import akka.routing.Router;
 
@@ -60,9 +57,12 @@ public class GroupActor extends AbstractActor {
 
         this.receiverBuilder = receiveBuilder()
                 .match(LeaveGroupRequest.class, this::onLeaveGroupRequest)
+                .match(GroupInviteUserCommand.class, this::onGroupInviteUserCommand)
+                .match(GroupInviteResponse.class, this::onGroupInviteResponse)
                 .match(TextMessage.class, this::OnGroupSendText)
                 .match(BinaryMessage.class, this::OnGroupSendFile)
                 .match(MuteUserCommand.class, this::onMuteUserCommand)
+                .match(Terminated.class, this::onTerminated)
                 .build();
 
         this.router = new Router(new BroadcastRoutingLogic());
@@ -76,6 +76,35 @@ public class GroupActor extends AbstractActor {
     @Override
     public Receive createReceive() {
         return this.receiverBuilder;
+    }
+
+    private void onGroupInviteUserCommand(GroupInviteUserCommand inviteUserCommand) {
+        if (!validateUserInGroup(getSender()) && !validateUserIsAdmin(getSender())) {
+            return;
+        }
+
+        if (inviteUserCommand.invitedUserAddress == null) {
+            getSender().tell(
+                    new CommandFailure(String.format("%s does not exist!", inviteUserCommand.invitedUsername)), getSelf());
+            return;
+        }
+
+        if (getUserInfoByUserAddress(inviteUserCommand.invitedUserAddress) != null) {
+            getSender().tell(
+                    new CommandFailure(String.format("%s is already in %s!", inviteUserCommand.invitedUsername, this.groupName)), getSelf());
+            return;
+        }
+
+        UserInfo inviterUserInfo = this.actorToUserInfo.get(getSender());
+        ActorSelection invitedUserActor = getContext().actorSelection(inviteUserCommand.invitedUserAddress);
+        invitedUserActor.tell(new GroupInviteMessage(this.groupName, inviterUserInfo.username), getSelf());
+    }
+
+    private void onGroupInviteResponse(GroupInviteResponse inviteResponse) {
+        if (inviteResponse.response.equals("Yes")) {
+            this.actorToUserInfo.put(getSender(), new UserInfo(inviteResponse.invitedUsername, Privileges.USER));
+            getSender().tell(new CommandFailure(String.format("Welcome to %s!", this.groupName)), getSelf());
+        }
     }
 
     private void onLeaveGroupRequest(LeaveGroupRequest leaveGroupRequest) {
@@ -114,22 +143,21 @@ public class GroupActor extends AbstractActor {
     }
 
     private void OnGroupSendText(TextMessage message) {
-        if (validateUserInGroup()) {
+        if (validateUserInGroup(getSender())) {
             // TODO: Validate Privileges
             router.route(new GroupTextMessage(this.groupName, message.sender, message.message), getSender());
         }
     }
 
     private void OnGroupSendFile(BinaryMessage message) {
-        if (validateUserInGroup()) {
+        if (validateUserInGroup(getSender())) {
             // TODO: Validate Privileges
             router.route(new GroupBinaryMessage(this.groupName, message), getSender());
         }
     }
 
     private void onMuteUserCommand(MuteUserCommand muteUserCommand) {
-        // TODO: Change if refactored
-        if (!validateUserInGroup()) {
+        if (!validateUserInGroup(getSender())) {
             return;
         }
 
@@ -144,12 +172,31 @@ public class GroupActor extends AbstractActor {
         // TODO
     }
 
-    private boolean validateUserInGroup() {
-        if (!this.actorToUserInfo.containsKey(getSender())) {
-            getSender().tell(new CommandFailure(String.format("You are not part of %s!", this.groupName)), getSelf());
+    private boolean validateUserInGroup(ActorRef userActor) {
+        if (!this.actorToUserInfo.containsKey(userActor)) {
+            userActor.tell(new CommandFailure(String.format("You are not part of %s!", this.groupName)), getSelf());
             return false;
         }
         return true;
+    }
+
+    private boolean validateUserIsAdmin(ActorRef userActor) {
+        UserInfo userInfo = this.actorToUserInfo.get(userActor);
+        if (!userInfo.privilege.hasPrivilegeOf(Privileges.CO_ADMIN)) {
+            userActor.tell(
+                    new CommandFailure(String.format("You are neither an admin nor a co-admin of %s!", this.groupName)), getSelf());
+            return false;
+        }
+        return true;
+    }
+
+    private UserInfo getUserInfoByUserAddress(String userAddress) {
+        for (Map.Entry<ActorRef, UserInfo> entry : this.actorToUserInfo.entrySet()) {
+            if (entry.getKey().path().toString().equals(userAddress)) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
 
     private ActorRef getUserActorByName(String userName) {
