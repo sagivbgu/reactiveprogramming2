@@ -106,6 +106,9 @@ public class GroupActor extends AbstractActor {
     private void onGroupInviteResponse(GroupInviteResponse inviteResponse) {
         if (inviteResponse.response.equals("Yes")) {
             this.actorToUserInfo.put(getSender(), new UserInfo(inviteResponse.invitedUsername, Privileges.USER));
+            this.router = this.router.addRoutee(getSender());
+            getContext().watch(getSender());
+
             getSender().tell(new CommandFailure(String.format("Welcome to %s!", this.groupName)), getSelf());
         }
     }
