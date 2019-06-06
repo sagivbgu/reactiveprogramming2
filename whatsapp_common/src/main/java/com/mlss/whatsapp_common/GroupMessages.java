@@ -2,7 +2,6 @@ package com.mlss.whatsapp_common;
 
 import java.io.Serializable;
 import com.mlss.whatsapp_common.ManagerCommands.*;
-import akka.actor.ActorRef;
 
 public class GroupMessages {
     static public class GroupTextMessage implements Serializable {
@@ -56,6 +55,18 @@ public class GroupMessages {
         public GroupInviteResponse(String response) {
             this.response = response;
             this.invitedUsername = null;
+        }
+    }
+
+    static public class GroupRemoveUserCommand implements Serializable {
+        public final String groupName;
+        public final String userToRemove;
+        public String removedUserAddress;
+
+        public GroupRemoveUserCommand(String groupName, String userToRemove) {
+            this.groupName = groupName;
+            this.userToRemove = userToRemove;
+            this.removedUserAddress = null;
         }
     }
 
