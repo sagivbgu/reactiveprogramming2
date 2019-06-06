@@ -94,7 +94,7 @@ public class GroupActor extends AbstractActor {
     }
 
     private void onGroupInviteUserCommand(GroupInviteUserCommand inviteUserCommand) {
-        if (!validateSenderInGroup() && !validateSenderIsAdmin()) {
+        if (!validateSenderInGroup() && !validateSenderIsCoAdmin()) {
             return;
         }
 
@@ -126,7 +126,7 @@ public class GroupActor extends AbstractActor {
     }
 
     private void onGroupRemoveUserCommand(GroupRemoveUserCommand removeUserCommand) {
-        if (!validateSenderInGroup() && !validateSenderIsAdmin()) {
+        if (!validateSenderInGroup() && !validateSenderIsCoAdmin()) {
             return;
         }
 
@@ -209,7 +209,7 @@ public class GroupActor extends AbstractActor {
 
     private void onMuteUserCommand(MuteUserCommand muteUserCommand) {
         if (!validateSenderInGroup() || !validateTargetInGroup(muteUserCommand.mutedUsername)
-                || !validateSenderIsAdmin() || !validateNotMutingItself(muteUserCommand.mutedUsername)) {
+                || !validateSenderIsCoAdmin() || !validateNotMutingItself(muteUserCommand.mutedUsername)) {
             return;
         }
 
@@ -242,7 +242,7 @@ public class GroupActor extends AbstractActor {
     }
 
     private void onUnmuteUserCommand(UnmuteUserCommand unmuteUserCommand) {
-        if (!validateSenderInGroup() || !validateTargetInGroup(unmuteUserCommand.unmutedUsername) || !validateSenderIsAdmin()) {
+        if (!validateSenderInGroup() || !validateTargetInGroup(unmuteUserCommand.unmutedUsername) || !validateSenderIsCoAdmin()) {
             return;
         }
 
@@ -299,7 +299,7 @@ public class GroupActor extends AbstractActor {
         return true;
     }
 
-    private boolean validateSenderIsAdmin() {
+    private boolean validateSenderIsCoAdmin() {
         UserInfo userInfo = this.actorToUserInfo.get(getSender());
         if (!userInfo.privilege.hasPrivilegeOf(Privileges.CO_ADMIN)) {
             getSender().tell(
