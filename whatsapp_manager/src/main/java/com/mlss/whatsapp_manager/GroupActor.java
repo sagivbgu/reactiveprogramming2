@@ -39,12 +39,22 @@ public class GroupActor extends AbstractActor {
     private class UserInfo {
         public String username;
         public Privileges privilege;
-        public long mutedTimeInSeconds;
+        public MuteInfo muteInfo;
 
         public UserInfo(String username, Privileges privilege) {
             this.username = username;
             this.privilege = privilege;
-            this.mutedTimeInSeconds = 0;
+            this.muteInfo = null;
+        }
+    }
+
+    private class MuteInfo {
+        public long timeInSeconds;
+        public Cancellable muteCancellable;
+
+        public MuteInfo(long timeInSeconds, Cancellable muteCancellable) {
+            this.timeInSeconds = timeInSeconds;
+            this.muteCancellable = muteCancellable;
         }
     }
 
@@ -65,6 +75,7 @@ public class GroupActor extends AbstractActor {
                 .match(TextMessage.class, this::OnGroupSendText)
                 .match(BinaryMessage.class, this::OnGroupSendFile)
                 .match(MuteUserCommand.class, this::onMuteUserCommand)
+                .match(UnmuteUserCommand.class, this::onUnmuteUserCommand)
                 .match(Terminated.class, this::onTerminated)
                 .build();
 
@@ -82,7 +93,7 @@ public class GroupActor extends AbstractActor {
     }
 
     private void onGroupInviteUserCommand(GroupInviteUserCommand inviteUserCommand) {
-        if (!validateUserInGroup(getSender()) && !validateUserIsAdmin(getSender())) {
+        if (!validateSenderInGroup() && !validateSenderIsAdmin()) {
             return;
         }
 
@@ -149,33 +160,24 @@ public class GroupActor extends AbstractActor {
     }
 
     private void OnGroupSendText(TextMessage message) {
-        if (validateUserInGroup(getSender()) && validateUserIsNotMuted(getSender())) {
+        if (validateSenderInGroup() && validateSenderNotMuted()) {
             router.route(new GroupTextMessage(this.groupName, message.sender, message.message), getSender());
         }
     }
 
     private void OnGroupSendFile(BinaryMessage message) {
-        if (validateUserInGroup(getSender()) && validateUserIsNotMuted(getSender())) {
+        if (validateSenderInGroup() && validateSenderNotMuted()) {
             router.route(new GroupBinaryMessage(this.groupName, message), getSender());
         }
     }
 
     private void onMuteUserCommand(MuteUserCommand muteUserCommand) {
-        if (!validateUserInGroup(getSender())) {
+        if (!validateSenderInGroup() || !validateTargetInGroup(muteUserCommand.mutedUsername)
+                || !validateSenderIsAdmin() || !validateNotMutingItself(muteUserCommand.mutedUsername)) {
             return;
         }
 
         ActorRef mutedUserActor = getUserActorByName(muteUserCommand.mutedUsername);
-        if (mutedUserActor == null) {
-            getSender().tell(new CommandFailure(String.format("%s does not exist!", muteUserCommand.mutedUsername)),
-                    getSelf());
-            return;
-        }
-
-        if (!validateUserIsAdmin(getSender())) {
-            return;
-        }
-
         UserInfo mutedUserInfo = this.actorToUserInfo.get(mutedUserActor);
         mutedUserInfo.privilege = Privileges.MUTED_USER;
 
@@ -188,43 +190,83 @@ public class GroupActor extends AbstractActor {
 
 
         ActorSystem system = getContext().getSystem();
-        system.scheduler().scheduleOnce(
+        Cancellable muteCancellable = system.scheduler().scheduleOnce(
                 Duration.ofSeconds(muteUserCommand.timeInSeconds),
-                () -> {
-                    mutedUserInfo.privilege = Privileges.USER;
-                    mutedUserActor.tell(
-                            new GroupTextMessage(this.groupName, muterUsername,
-                                    "You have been unmuted! Muting time is up!"),
-                            getSender());
-                },
+                () -> unmuteUser(mutedUserActor, mutedUserInfo, muterUsername, "Muting time is up!"),
                 system.dispatcher());
-        mutedUserInfo.mutedTimeInSeconds = muteUserCommand.timeInSeconds;
+        mutedUserInfo.muteInfo = new MuteInfo(muteUserCommand.timeInSeconds, muteCancellable);
     }
 
-    private boolean validateUserInGroup(ActorRef userActor) {
-        if (!this.actorToUserInfo.containsKey(userActor)) {
-            userActor.tell(new CommandFailure(String.format("You are not part of %s!", this.groupName)), getSelf());
+    private boolean validateNotMutingItself(String mutedUsername) {
+        if (this.actorToUserInfo.get(getSender()).username.equals(mutedUsername)) {
+            getSender().tell(new CommandFailure("You can't mute yourself!"), getSelf());
             return false;
         }
         return true;
     }
 
-    private boolean validateUserIsNotMuted(ActorRef userActor) {
-        UserInfo userInfo = this.actorToUserInfo.get(userActor);
-        if (!userInfo.privilege.hasPrivilegeOf(Privileges.USER)) {
-            userActor.tell(
-                    new CommandFailure(String.format("You are muted for %s seconds in %s",
-                            userInfo.mutedTimeInSeconds, this.groupName)),
+    private void onUnmuteUserCommand(UnmuteUserCommand unmuteUserCommand) {
+        if (!validateSenderInGroup() || !validateTargetInGroup(unmuteUserCommand.unmutedUsername) || !validateSenderIsAdmin()) {
+            return;
+        }
+
+        ActorRef mutedUserActor = getUserActorByName(unmuteUserCommand.unmutedUsername);
+        if (this.actorToUserInfo.get(mutedUserActor).privilege.hasPrivilegeOf(Privileges.USER)) {
+            getSender().tell(
+                    new CommandFailure(String.format("%s is not muted!", unmuteUserCommand.unmutedUsername)),
+                    getSelf());
+            return;
+        }
+        UserInfo mutedUserInfo = this.actorToUserInfo.get(mutedUserActor);
+        String muterUsername = this.actorToUserInfo.get(getSender()).username;
+
+        mutedUserInfo.muteInfo.muteCancellable.cancel();
+        unmuteUser(mutedUserActor, mutedUserInfo, muterUsername, "");
+    }
+
+    private void unmuteUser(ActorRef mutedUserActor, UserInfo mutedUserInfo, String muterUsername, String unmutingReason) {
+        mutedUserInfo.privilege = Privileges.USER;
+        mutedUserActor.tell(
+                new GroupTextMessage(this.groupName, muterUsername,
+                        "You have been unmuted! " + unmutingReason),
+                getSender());
+        mutedUserInfo.muteInfo = null;
+    }
+
+    private boolean validateTargetInGroup(String username) {
+        ActorRef targetUserActor = getUserActorByName(username);
+        if (targetUserActor == null) {
+            getSender().tell(new CommandFailure(String.format("%s does not exist!", username)),
                     getSelf());
             return false;
         }
         return true;
     }
 
-    private boolean validateUserIsAdmin(ActorRef userActor) {
-        UserInfo userInfo = this.actorToUserInfo.get(userActor);
+    private boolean validateSenderInGroup() {
+        if (!this.actorToUserInfo.containsKey(getSender())) {
+            getSender().tell(new CommandFailure(String.format("You are not part of %s!", this.groupName)), getSelf());
+            return false;
+        }
+        return true;
+    }
+
+    private boolean validateSenderNotMuted() {
+        UserInfo userInfo = this.actorToUserInfo.get(getSender());
+        if (!userInfo.privilege.hasPrivilegeOf(Privileges.USER)) {
+            getSender().tell(
+                    new CommandFailure(String.format("You are muted for %s seconds in %s",
+                            userInfo.muteInfo.timeInSeconds, this.groupName)),
+                    getSelf());
+            return false;
+        }
+        return true;
+    }
+
+    private boolean validateSenderIsAdmin() {
+        UserInfo userInfo = this.actorToUserInfo.get(getSender());
         if (!userInfo.privilege.hasPrivilegeOf(Privileges.CO_ADMIN)) {
-            userActor.tell(
+            getSender().tell(
                     new CommandFailure(String.format("You are neither an admin nor a co-admin of %s!", this.groupName)),
                     getSelf());
             return false;

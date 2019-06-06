@@ -75,10 +75,20 @@ public class GroupMessages {
         public final String mutedUsername;
         public final long timeInSeconds;
 
-        public MuteUserCommand(String groupName, String invitedUsername, long timeInSeconds) {
+        public MuteUserCommand(String groupName, String mutedUsername, long timeInSeconds) {
             this.groupName = groupName;
-            this.mutedUsername = invitedUsername;
+            this.mutedUsername = mutedUsername;
             this.timeInSeconds = timeInSeconds;
+        }
+    }
+
+    static public class UnmuteUserCommand implements Serializable {
+        public final String groupName;
+        public final String unmutedUsername;
+
+        public UnmuteUserCommand(String groupName, String unmutedUsername) {
+            this.groupName = groupName;
+            this.unmutedUsername = unmutedUsername;
         }
     }
 
