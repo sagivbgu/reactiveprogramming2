@@ -62,9 +62,9 @@ public class GroupMessages {
     static public class MuteUserCommand implements Serializable {
         public final String groupName;
         public final String mutedUsername;
-        public final double timeInSeconds;
+        public final long timeInSeconds;
 
-        public MuteUserCommand(String groupName, String invitedUsername, double timeInSeconds) {
+        public MuteUserCommand(String groupName, String invitedUsername, long timeInSeconds) {
             this.groupName = groupName;
             this.mutedUsername = invitedUsername;
             this.timeInSeconds = timeInSeconds;
