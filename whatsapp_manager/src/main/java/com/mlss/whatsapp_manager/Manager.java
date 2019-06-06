@@ -33,9 +33,10 @@ public class Manager extends AbstractActor {
                 .match(DisconnectRequest.class, this::onDisconnectRequest)
                 .match(UserAddressRequest.class, this::onUserAddressRequest)
                 .match(CreateGroupRequest.class, this::onCreateGroup)
-                .match(LeaveGroupRequest.class, this::onLeaveGroup)
-                .match(GroupSendMessage.class, this::onGroupSendMessage)
+                .match(LeaveGroupRequest.class, msg -> forwardIfGroupExists(msg, msg.groupName))
+                .match(GroupSendMessage.class, msg -> forwardIfGroupExists(msg, msg.groupName))
                 .match(GroupInviteUserCommand.class, this::onGroupInviteUserCommand)
+                .match(MuteUserCommand.class, msg -> forwardIfGroupExists(msg, msg.groupName))
                 .match(Terminated.class, this::onActorTermination)
                 .build();
     }
@@ -131,17 +132,13 @@ public class Manager extends AbstractActor {
         System.out.println(String.format("Group %s created", createGroupRequest.groupName));
     }
 
-    private void onLeaveGroup(LeaveGroupRequest leaveGroupRequest) {
-        groupNamesToActors.get(leaveGroupRequest.groupName).forward(leaveGroupRequest, getContext());
-    }
-
-    private void onGroupSendMessage(GroupSendMessage groupSendMessage) {
-        if (!groupNamesToActors.containsKey(groupSendMessage.groupName)) {
+    private void forwardIfGroupExists(Object message, String groupName) {
+        ActorRef groupActor = groupNamesToActors.get(groupName);
+        if (groupActor == null) {
             getSender().tell(
-                    new CommandFailure(String.format("Group %s does not exist!", groupSendMessage.groupName)), getSelf()
-            );
+                    new CommandFailure(String.format("%s does not exist!", groupName)), getSelf());
         } else {
-            groupNamesToActors.get(groupSendMessage.groupName).forward(groupSendMessage.message, getContext());
+            groupActor.forward(message, getContext());
         }
     }
 
@@ -164,11 +161,5 @@ public class Manager extends AbstractActor {
 
         // TODO: Delete this
         System.out.println("onActorTermination: Something wrong happened");
-    }
-
-    private void validateGroupExists(String groupName) {
-        if (!this.groupNamesToActors.containsKey(groupName)) {
-            getSender().tell(new CommandFailure(String.format("")), getSelf());
-        }
     }
 }
