@@ -34,7 +34,7 @@ public class Manager extends AbstractActor {
                 .match(UserAddressRequest.class, this::onUserAddressRequest)
                 .match(CreateGroupRequest.class, this::onCreateGroup)
                 .match(LeaveGroupRequest.class, msg -> forwardIfGroupExists(msg, msg.groupName))
-                .match(GroupSendMessage.class, msg -> forwardIfGroupExists(msg, msg.groupName))
+                .match(GroupSendMessage.class, msg -> forwardIfGroupExists(msg.message, msg.groupName))
                 .match(GroupInviteUserCommand.class, this::onGroupInviteUserCommand)
                 .match(MuteUserCommand.class, msg -> forwardIfGroupExists(msg, msg.groupName))
                 .match(Terminated.class, this::onActorTermination)
@@ -156,14 +156,14 @@ public class Manager extends AbstractActor {
         String terminatedGroupName = getGroupNameByActor(terminatedActor);
         if (terminatedGroupName != null && this.groupNamesToActors.containsKey(terminatedGroupName)) {
             this.groupNamesToActors.remove(terminatedGroupName);
-            System.out.println("onActorTermination: Group %s terminated");
+            System.out.println(String.format("onActorTermination: Group %s terminated", terminatedGroupName));
             return;
         }
 
         String terminatedUsername = getUsernameByPath(terminatedActor.path().toString());
         if (terminatedUsername != null && this.usersToAddresses.containsKey(terminatedUsername)) {
             this.usersToAddresses.remove(terminatedUsername);
-            System.out.println("onActorTermination: User %s terminated");
+            System.out.println(String.format("onActorTermination: User %s terminated", terminatedUsername));
             return;
         }
 
