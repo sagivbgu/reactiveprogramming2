@@ -46,6 +46,18 @@ public class GroupMessages {
         }
     }
 
+    static public class MuteUserCommand implements Serializable {
+        public final String groupName;
+        public final String mutedUsername;
+        public final double timeInSeconds;
+
+        public MuteUserCommand(String groupName, String invitedUsername, double timeInSeconds) {
+            this.groupName = groupName;
+            this.mutedUsername = invitedUsername;
+            this.timeInSeconds = timeInSeconds;
+        }
+    }
+
     public GroupMessages() {
     }
 }

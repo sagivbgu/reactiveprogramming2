@@ -1,6 +1,7 @@
 package com.mlss.whatsapp_manager;
 
 import java.util.HashMap;
+import java.util.Map;
 
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
@@ -61,7 +62,7 @@ public class GroupActor extends AbstractActor {
                 .match(LeaveGroupRequest.class, this::onLeaveGroupRequest)
                 .match(TextMessage.class, this::OnGroupSendText)
                 .match(BinaryMessage.class, this::OnGroupSendFile)
-                .match(Terminated.class, this::onTerminated)
+                .match(MuteUserCommand.class, this::onMuteUserCommand)
                 .build();
 
         this.router = new Router(new BroadcastRoutingLogic());
@@ -126,12 +127,38 @@ public class GroupActor extends AbstractActor {
         }
     }
 
+    private void onMuteUserCommand(MuteUserCommand muteUserCommand) {
+        // TODO: Change if refactored
+        if (!validateUserInGroup()) {
+            return;
+        }
+
+        ActorRef userActorToMute = getUserActorByName(muteUserCommand.mutedUsername);
+        if (userActorToMute == null) {
+            getSender().tell(new CommandFailure(String.format("%s does not exist!", muteUserCommand.mutedUsername)),
+                    getSelf());
+            return;
+        }
+
+        // Check if co-admin or admin
+        // TODO
+    }
+
     private boolean validateUserInGroup() {
         if (!this.actorToUserInfo.containsKey(getSender())) {
             getSender().tell(new CommandFailure(String.format("You are not part of %s!", this.groupName)), getSelf());
             return false;
         }
         return true;
+    }
+
+    private ActorRef getUserActorByName(String userName) {
+        for (Map.Entry<ActorRef, UserInfo> entry : this.actorToUserInfo.entrySet()) {
+            if (userName.equals(entry.getValue().username)) {
+                return entry.getKey();
+            }
+        }
+        return null;
     }
 
     private void onTerminated(Terminated t) {

@@ -69,7 +69,8 @@ public class UserActor extends AbstractActor {
                 .match(GroupSendMessage.class, this::onGroupSendMessage)
                 .match(GroupTextMessage.class, msg -> MessagePrinter.print(msg.message, msg.senderUsername, msg.groupName))
                 .match(GroupBinaryMessage.class, groupMessage -> onBinaryMessage(groupMessage.message, groupMessage.groupName))
-                .match(GroupInviteUserCommand.class, inviteCommand -> this.managingServer.tell(inviteCommand, getSelf()))
+                .match(GroupInviteUserCommand.class, command -> this.managingServer.tell(command, getSelf()))
+                .match(MuteUserCommand.class, command -> this.managingServer.tell(command, getSelf()))
                 .match(CommandFailure.class, failure -> System.out.println(failure.failureMessage))
                 .build();
 

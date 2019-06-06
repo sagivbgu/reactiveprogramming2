@@ -175,20 +175,23 @@ public class CommandsExecutor {
     }
 
     private void runGroupCreateCommand(String[] commandWords) throws IllegalCommandException {
-        if (commandWords.length < 3) {
+        if (commandWords.length > 3) {
+            System.out.println("Group name can't contain spaces");
+        }
+        if (commandWords.length != 3) {
             throw new IllegalCommandException();
         }
 
-        String groupName = joinWords(commandWords, 2);
+        String groupName = commandWords[2];
         this.userActor.tell(new CreateGroupRequest(groupName), ActorRef.noSender());
     }
 
     private void runGroupLeaveCommand(String[] commandWords) throws IllegalCommandException {
-        if (commandWords.length < 3) {
+        if (commandWords.length != 3) {
             throw new IllegalCommandException();
         }
 
-        String groupName = joinWords(commandWords, 2);
+        String groupName = commandWords[2];
         this.userActor.tell(new LeaveGroupRequest(groupName), ActorRef.noSender());
     }
 
@@ -244,12 +247,31 @@ public class CommandsExecutor {
                 this.userActor.tell(new GroupInviteUserCommand(groupName, targetUsername), ActorRef.noSender());
                 break;
             case "mute":
-                if (commandWords.length != 6) {
-                    throw new IllegalCommandException();
-                }
+                runGroupMuteCommand(commandWords);
+                break;
             default:
                 throw new IllegalCommandException();
         }
+    }
+
+    private void runGroupMuteCommand(String[] commandWords) throws IllegalCommandException {
+        if (commandWords.length != 6) {
+            throw new IllegalCommandException();
+        }
+
+        String groupName = commandWords[3];
+        String targetUsername = commandWords[4];
+        double timeInSeconds;
+        try {
+            timeInSeconds = Double.parseDouble(commandWords[5]);
+        } catch (NumberFormatException e) {
+            throw new IllegalCommandException();
+        }
+        if (timeInSeconds < 0) {
+            throw new IllegalCommandException();
+        }
+
+        this.userActor.tell(new MuteUserCommand(groupName, targetUsername, timeInSeconds), ActorRef.noSender());
     }
 
     private String joinWords(String[] commandWords, int fromIndex) {
