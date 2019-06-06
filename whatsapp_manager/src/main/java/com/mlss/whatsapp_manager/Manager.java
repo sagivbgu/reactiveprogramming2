@@ -72,13 +72,13 @@ public class Manager extends AbstractActor {
 
     private void onDisconnectRequest(DisconnectRequest request) {
         String userPath = getSender().path().toString();
-        System.out.println("User disconnected: " + getUsernameByPath(userPath));
         String username = getUsernameByPath(userPath);
         if (username == null) {
             System.out.println("Got disconnect request from disconnected user");
             return;
         }
 
+        System.out.println("User disconnected: " + getUsernameByPath(userPath));
         this.usersToAddresses.remove(username);
 
         getSender().tell(new DisconnectAccepted(username), getSelf());
