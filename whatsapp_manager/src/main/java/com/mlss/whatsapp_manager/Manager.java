@@ -36,6 +36,7 @@ public class Manager extends AbstractActor {
                 .match(LeaveGroupRequest.class, msg -> forwardIfGroupExists(msg, msg.groupName))
                 .match(GroupSendMessage.class, msg -> forwardIfGroupExists(msg.message, msg.groupName))
                 .match(GroupInviteUserCommand.class, this::onGroupInviteUserCommand)
+                .match(GroupRemoveUserCommand.class, this::onGroupRemoveUserCommand)
                 .match(MuteUserCommand.class, msg -> forwardIfGroupExists(msg, msg.groupName))
                 .match(Terminated.class, this::onActorTermination)
                 .build();
@@ -44,14 +45,29 @@ public class Manager extends AbstractActor {
     // TODO: Check what happens if user got invite, but meanwhile the group was terminated
 
     private void onGroupInviteUserCommand(GroupInviteUserCommand inviteUserCommand) {
-        if (validateGroupExists(inviteUserCommand.groupName)) {
-            inviteUserCommand.invitedUserAddress = null;
-            if (this.usersToAddresses.containsKey(inviteUserCommand.invitedUsername)) {
-                inviteUserCommand.invitedUserAddress = this.usersToAddresses.get(inviteUserCommand.invitedUsername);
-            }
-
-            this.groupNamesToActors.get(inviteUserCommand.groupName).forward(inviteUserCommand, getContext());
+        ActorRef groupActor = validateGroupExists(inviteUserCommand.groupName);
+        if (groupActor == null) {
+            return;
         }
+
+        if (this.usersToAddresses.containsKey(inviteUserCommand.invitedUsername)) {
+            inviteUserCommand.invitedUserAddress = this.usersToAddresses.get(inviteUserCommand.invitedUsername);
+        }
+
+        groupActor.forward(inviteUserCommand, getContext());
+    }
+
+    private void onGroupRemoveUserCommand(GroupRemoveUserCommand removeUserCommand) {
+        ActorRef groupActor = validateGroupExists(removeUserCommand.groupName);
+        if (groupActor == null) {
+            return;
+        }
+
+        if (this.usersToAddresses.containsKey(removeUserCommand.userToRemove)) {
+            removeUserCommand.removedUserAddress = this.usersToAddresses.get(removeUserCommand.userToRemove);
+        }
+
+        groupActor.forward(removeUserCommand, getContext());
     }
 
     private void onConnectRequest(ConnectRequest request) {
@@ -132,7 +148,6 @@ public class Manager extends AbstractActor {
         getContext().watch(groupActor);
         groupNamesToActors.put(createGroupRequest.groupName, groupActor);
 
-        // TODO: Why is it called "GeneralMessage"? It's not a failure
         getSender().tell(
                 new GeneralMessage(String.format("%s created successfully!", createGroupRequest.groupName)),
                 getSelf()
@@ -141,11 +156,8 @@ public class Manager extends AbstractActor {
     }
 
     private void forwardIfGroupExists(Object message, String groupName) {
-        ActorRef groupActor = groupNamesToActors.get(groupName);
-        if (groupActor == null) {
-            getSender().tell(
-                    new GeneralMessage(String.format("%s does not exist!", groupName)), getSelf());
-        } else {
+        ActorRef groupActor = validateGroupExists(groupName);
+        if (groupActor != null) {
             groupActor.forward(message, getContext());
         }
     }
@@ -171,11 +183,13 @@ public class Manager extends AbstractActor {
         System.out.println("onActorTermination: Something wrong happened");
     }
 
-    private boolean validateGroupExists(String groupName) {
-        if (!this.groupNamesToActors.containsKey(groupName)) {
+    private ActorRef validateGroupExists(String groupName) {
+        ActorRef groupActor = this.groupNamesToActors.get(groupName);
+
+        if (groupActor == null) {
             getSender().tell(new GeneralMessage(String.format("%s does not exist!", groupName)), getSelf());
-            return false;
         }
-        return true;
+
+        return groupActor;
     }
 }
