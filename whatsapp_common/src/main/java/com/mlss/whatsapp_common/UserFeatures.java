@@ -41,10 +41,10 @@ public class UserFeatures {
         }
     }
 
-    static public class CommandFailure implements Serializable {
+    static public class GeneralMessage implements Serializable {
         public final String failureMessage;
 
-        public CommandFailure(String failureMessage) {
+        public GeneralMessage(String failureMessage) {
             this.failureMessage = failureMessage;
         }
     }
