@@ -182,7 +182,7 @@ public class GroupActor extends AbstractActor {
         String muterUsername = this.actorToUserInfo.get(getSender()).username;
         mutedUserActor.tell(
                 new GroupTextMessage(this.groupName, muterUsername,
-                        String.format("You have been muted for %s in %s by %s!",
+                        String.format("You have been muted for %s seconds in %s by %s!",
                                 muteUserCommand.timeInSeconds, this.groupName, muterUsername)),
                 getSender());
 
