@@ -7,6 +7,7 @@ import com.mlss.whatsapp_common.GroupMessages.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Scanner;
@@ -135,7 +136,12 @@ public class CommandsExecutor {
     }
 
     private BinaryMessage getBinaryMessage(String filePath) {
-        if (Files.notExists(Paths.get(filePath))) {
+        try {
+            if (Files.notExists(Paths.get(filePath))) {
+                System.out.println(String.format("%s does not exist!", filePath));
+                return null;
+            }
+        } catch (InvalidPathException e) {
             System.out.println(String.format("%s does not exist!", filePath));
             return null;
         }
