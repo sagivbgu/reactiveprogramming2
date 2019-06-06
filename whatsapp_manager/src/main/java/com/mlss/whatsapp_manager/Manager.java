@@ -36,7 +36,8 @@ public class Manager extends AbstractActor {
                 .match(LeaveGroupRequest.class, msg -> forwardIfGroupExists(msg, msg.groupName))
                 .match(GroupSendMessage.class, msg -> forwardIfGroupExists(msg.message, msg.groupName))
                 .match(GroupInviteUserCommand.class, this::onGroupInviteUserCommand)
-                .match(MuteUserCommand.class, msg -> forwardIfGroupExists(msg, msg.groupName))
+                .match(MuteUserCommand.class, command -> forwardIfGroupExists(command, command.groupName))
+                .match(UnmuteUserCommand.class, command -> forwardIfGroupExists(command, command.groupName))
                 .match(Terminated.class, this::onActorTermination)
                 .build();
     }

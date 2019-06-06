@@ -258,6 +258,9 @@ public class CommandsExecutor {
             case "mute":
                 runGroupMuteCommand(commandWords);
                 break;
+            case "unmute":
+                this.userActor.tell(new UnmuteUserCommand(groupName, targetUsername), ActorRef.noSender());
+                break;
             default:
                 throw new IllegalCommandException();
         }
