@@ -126,7 +126,7 @@ public class GroupActor extends AbstractActor {
     }
 
     private void onGroupRemoveUserCommand(GroupRemoveUserCommand removeUserCommand) {
-        if (!validateUserInGroup(getSender()) && !validateUserIsAdmin(getSender())) {
+        if (!validateSenderInGroup() && !validateSenderIsAdmin()) {
             return;
         }
 
@@ -235,7 +235,7 @@ public class GroupActor extends AbstractActor {
 
     private boolean validateNotMutingItself(String mutedUsername) {
         if (this.actorToUserInfo.get(getSender()).username.equals(mutedUsername)) {
-            getSender().tell(new CommandFailure("You can't mute yourself!"), getSelf());
+            getSender().tell(new GeneralMessage("You can't mute yourself!"), getSelf());
             return false;
         }
         return true;
@@ -249,7 +249,7 @@ public class GroupActor extends AbstractActor {
         ActorRef mutedUserActor = getUserActorByName(unmuteUserCommand.unmutedUsername);
         if (this.actorToUserInfo.get(mutedUserActor).privilege.hasPrivilegeOf(Privileges.USER)) {
             getSender().tell(
-                    new CommandFailure(String.format("%s is not muted!", unmuteUserCommand.unmutedUsername)),
+                    new GeneralMessage(String.format("%s is not muted!", unmuteUserCommand.unmutedUsername)),
                     getSelf());
             return;
         }
