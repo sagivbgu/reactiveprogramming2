@@ -41,12 +41,23 @@ public class UserFeatures {
         }
     }
 
-    static public class CommandFailure implements Serializable {
-        public final String failureMessage;
+    static public class GeneralMessage implements Serializable {
+        public final String message;
+        public final String groupName;
+        public final String sourceUsername;
 
-        public CommandFailure(String failureMessage) {
-            this.failureMessage = failureMessage;
+        public GeneralMessage(String message) {
+            this.message = message;
+            this.sourceUsername = null;
+            this.groupName = null;
         }
+
+        public GeneralMessage(String message, String sourceUsername, String groupName) {
+            this.message = message;
+            this.sourceUsername = sourceUsername;
+            this.groupName = groupName;
+        }
+
     }
 
     public UserFeatures() {

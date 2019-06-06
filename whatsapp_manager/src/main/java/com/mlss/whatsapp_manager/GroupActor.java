@@ -71,6 +71,7 @@ public class GroupActor extends AbstractActor {
         this.receiverBuilder = receiveBuilder()
                 .match(LeaveGroupRequest.class, this::onLeaveGroupRequest)
                 .match(GroupInviteUserCommand.class, this::onGroupInviteUserCommand)
+                .match(GroupRemoveUserCommand.class, this::onGroupRemoveUserCommand)
                 .match(GroupInviteResponse.class, this::onGroupInviteResponse)
                 .match(TextMessage.class, this::OnGroupSendText)
                 .match(BinaryMessage.class, this::OnGroupSendFile)
@@ -99,13 +100,13 @@ public class GroupActor extends AbstractActor {
 
         if (inviteUserCommand.invitedUserAddress == null) {
             getSender().tell(
-                    new CommandFailure(String.format("%s does not exist!", inviteUserCommand.invitedUsername)), getSelf());
+                    new GeneralMessage(String.format("%s does not exist!", inviteUserCommand.invitedUsername)), getSelf());
             return;
         }
 
         if (getUserInfoByUserAddress(inviteUserCommand.invitedUserAddress) != null) {
             getSender().tell(
-                    new CommandFailure(String.format("%s is already in %s!", inviteUserCommand.invitedUsername, this.groupName)), getSelf());
+                    new GeneralMessage(String.format("%s is already in %s!", inviteUserCommand.invitedUsername, this.groupName)), getSelf());
             return;
         }
 
@@ -120,25 +121,44 @@ public class GroupActor extends AbstractActor {
             this.router = this.router.addRoutee(getSender());
             getContext().watch(getSender());
 
-            getSender().tell(new CommandFailure(String.format("Welcome to %s!", this.groupName)), getSelf());
+            getSender().tell(new GeneralMessage(String.format("Welcome to %s!", this.groupName)), getSelf());
         }
     }
 
-    private void onLeaveGroupRequest(LeaveGroupRequest leaveGroupRequest) {
-        // TODO: Delete
-        if (!this.groupName.equals(leaveGroupRequest.groupName)) {
-            System.out.println("Manager did something wrong");
+    private void onGroupRemoveUserCommand(GroupRemoveUserCommand removeUserCommand) {
+        if (!validateUserInGroup(getSender()) && !validateUserIsAdmin(getSender())) {
             return;
         }
 
-        if (!this.actorToUserInfo.containsKey(getSender())) {
-            String errorMessage = String.format("%s is not in %s!", leaveGroupRequest.leavingUsername, leaveGroupRequest.groupName);
-            System.out.println(errorMessage);
-            getSender().tell(new CommandFailure(errorMessage), getSelf());
+        ActorRef removedUserActor = getUserActorByName(removeUserCommand.userToRemove);
+        if (removedUserActor == null) {
+            String errorMessage = String.format("%s is not in %s!", removeUserCommand.userToRemove, this.groupName);
+            getSender().tell(new GeneralMessage(errorMessage), getSelf());
             return;
         }
 
-        UserInfo leavingUser = this.actorToUserInfo.get(getSender());
+        // TODO: Really need it?
+        if (removedUserActor.equals(this.groupCreatorActor)) {
+            getSender().tell(new GeneralMessage("You can't remove yourself!"), getSelf());
+            return;
+        }
+
+        UserInfo removedUserInfo = this.actorToUserInfo.get(removedUserActor);
+        if (removedUserInfo.privilege == Privileges.CO_ADMIN) {
+            // TODO: remove from co admin list
+        }
+
+        UserInfo removerUserInfo = this.actorToUserInfo.get(getSender());
+        this.actorToUserInfo.remove(removedUserActor);
+
+        String message = String.format("You have been removed from %s by %s!", this.groupName, removerUserInfo.username);
+        removedUserActor.tell(new GeneralMessage(message, removerUserInfo.username, this.groupName), getSelf());
+    }
+
+    private void leaveGroup(ActorRef userActor) {
+        this.router = this.router.removeRoutee(userActor);
+
+        UserInfo leavingUser = this.actorToUserInfo.get(userActor);
         this.router.route(new GroupTextMessage(this.groupName, leavingUser.username,
                         String.format("%s has left %s!", leavingUser.username, this.groupName)),
                 this.getSelf());
@@ -151,12 +171,28 @@ public class GroupActor extends AbstractActor {
             return;
         }
 
-        this.router = this.router.removeRoutee(getSender());
-        this.actorToUserInfo.remove(getSender());
+        this.actorToUserInfo.remove(userActor);
 
         if (leavingUser.privilege.hasPrivilegeOf(Privileges.CO_ADMIN)) {
             // TODO: Remove from co-admin list
         }
+    }
+
+    private void onLeaveGroupRequest(LeaveGroupRequest leaveGroupRequest) {
+        // TODO: Delete
+        if (!this.groupName.equals(leaveGroupRequest.groupName)) {
+            System.out.println("Manager did something wrong");
+            return;
+        }
+
+        if (!this.actorToUserInfo.containsKey(getSender())) {
+            String errorMessage = String.format("%s is not in %s!", leaveGroupRequest.leavingUsername, this.groupName);
+            System.out.println(errorMessage);
+            getSender().tell(new GeneralMessage(errorMessage), getSelf());
+            return;
+        }
+
+        this.leaveGroup(getSender());
     }
 
     private void OnGroupSendText(TextMessage message) {
@@ -236,7 +272,7 @@ public class GroupActor extends AbstractActor {
     private boolean validateTargetInGroup(String username) {
         ActorRef targetUserActor = getUserActorByName(username);
         if (targetUserActor == null) {
-            getSender().tell(new CommandFailure(String.format("%s does not exist!", username)),
+            getSender().tell(new GeneralMessage(String.format("%s does not exist!", username)),
                     getSelf());
             return false;
         }
@@ -245,7 +281,7 @@ public class GroupActor extends AbstractActor {
 
     private boolean validateSenderInGroup() {
         if (!this.actorToUserInfo.containsKey(getSender())) {
-            getSender().tell(new CommandFailure(String.format("You are not part of %s!", this.groupName)), getSelf());
+            getSender().tell(new GeneralMessage(String.format("You are not part of %s!", this.groupName)), getSelf());
             return false;
         }
         return true;
@@ -255,7 +291,7 @@ public class GroupActor extends AbstractActor {
         UserInfo userInfo = this.actorToUserInfo.get(getSender());
         if (!userInfo.privilege.hasPrivilegeOf(Privileges.USER)) {
             getSender().tell(
-                    new CommandFailure(String.format("You are muted for %s seconds in %s",
+                    new GeneralMessage(String.format("You are muted for %s seconds in %s",
                             userInfo.muteInfo.timeInSeconds, this.groupName)),
                     getSelf());
             return false;
@@ -267,7 +303,7 @@ public class GroupActor extends AbstractActor {
         UserInfo userInfo = this.actorToUserInfo.get(getSender());
         if (!userInfo.privilege.hasPrivilegeOf(Privileges.CO_ADMIN)) {
             getSender().tell(
-                    new CommandFailure(String.format("You are neither an admin nor a co-admin of %s!", this.groupName)),
+                    new GeneralMessage(String.format("You are neither an admin nor a co-admin of %s!", this.groupName)),
                     getSelf());
             return false;
         }
@@ -293,7 +329,8 @@ public class GroupActor extends AbstractActor {
     }
 
     private void onTerminated(Terminated t) {
+        ActorRef userActor = t.getActor();
+        this.leaveGroup(userActor);
         this.router = this.router.removeRoutee(t.getActor());
-        // TODO
     }
 }
