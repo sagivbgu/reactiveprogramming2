@@ -3,7 +3,6 @@ package com.mlss.whatsapp_client;
 import akka.actor.*;
 
 import com.mlss.whatsapp_common.GroupMessages.*;
-import com.mlss.whatsapp_common.ManagerCommands;
 import com.mlss.whatsapp_common.ManagerCommands.*;
 import com.mlss.whatsapp_common.UserFeatures.*;
 
@@ -66,7 +65,7 @@ public class UserActor extends AbstractActor {
                 .match(UserAddressResponse.class, this::onUserAddressResponse)
                 .match(UserNotFound.class, this::onUserNotFound)
                 .match(SendMessageRequest.class, this::onSendMessageRequest)
-                .match(TextMessage.class, this::onTextMessage)
+                .match(TextMessage.class, msg -> MessagePrinter.print(msg.message, msg.sender))
                 .match(BinaryMessage.class, msg -> onBinaryMessage(msg, MessagePrinter.USER_SENDER))
                 .match(CreateGroupRequest.class, createGroupRequest -> this.managingServer.tell(createGroupRequest, getSelf()))
                 .match(LeaveGroupRequest.class, this::onLeaveGroupRequest)
@@ -93,7 +92,6 @@ public class UserActor extends AbstractActor {
     }
 
     // TODO: Move to common utils
-
     private boolean validateActorOnline(ActorSelection actor) {
         Timeout timeout = new Timeout(5, TimeUnit.SECONDS);
         Future<ActorRef> rt = actor.resolveOne(timeout);
@@ -165,10 +163,6 @@ public class UserActor extends AbstractActor {
             this.usersToMessageQueues.put(username, new LinkedList<>());
         }
         return this.usersToMessageQueues.get(username);
-    }
-
-    private void onTextMessage(TextMessage message) {
-        MessagePrinter.print(message.message, message.sender);
     }
 
     private void onBinaryMessage(BinaryMessage message, String groupName) {
