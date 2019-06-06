@@ -261,9 +261,9 @@ public class CommandsExecutor {
 
         String groupName = commandWords[3];
         String targetUsername = commandWords[4];
-        double timeInSeconds;
+        long timeInSeconds;
         try {
-            timeInSeconds = Double.parseDouble(commandWords[5]);
+            timeInSeconds = Long.parseLong(commandWords[5]);
         } catch (NumberFormatException e) {
             throw new IllegalCommandException();
         }

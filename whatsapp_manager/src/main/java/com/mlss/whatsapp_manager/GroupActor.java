@@ -1,5 +1,6 @@
 package com.mlss.whatsapp_manager;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -38,10 +39,12 @@ public class GroupActor extends AbstractActor {
     private class UserInfo {
         public String username;
         public Privileges privilege;
+        public long mutedTimeInSeconds;
 
         public UserInfo(String username, Privileges privilege) {
             this.username = username;
             this.privilege = privilege;
+            this.mutedTimeInSeconds = 0;
         }
     }
 
@@ -143,15 +146,13 @@ public class GroupActor extends AbstractActor {
     }
 
     private void OnGroupSendText(TextMessage message) {
-        if (validateUserInGroup(getSender())) {
-            // TODO: Validate Privileges
+        if (validateUserInGroup(getSender()) && validateUserIsNotMuted(getSender())) {
             router.route(new GroupTextMessage(this.groupName, message.sender, message.message), getSender());
         }
     }
 
     private void OnGroupSendFile(BinaryMessage message) {
-        if (validateUserInGroup(getSender())) {
-            // TODO: Validate Privileges
+        if (validateUserInGroup(getSender()) && validateUserIsNotMuted(getSender())) {
             router.route(new GroupBinaryMessage(this.groupName, message), getSender());
         }
     }
@@ -161,15 +162,40 @@ public class GroupActor extends AbstractActor {
             return;
         }
 
-        ActorRef userActorToMute = getUserActorByName(muteUserCommand.mutedUsername);
-        if (userActorToMute == null) {
+        ActorRef mutedUserActor = getUserActorByName(muteUserCommand.mutedUsername);
+        if (mutedUserActor == null) {
             getSender().tell(new CommandFailure(String.format("%s does not exist!", muteUserCommand.mutedUsername)),
                     getSelf());
             return;
         }
 
-        // Check if co-admin or admin
-        // TODO
+        if (!validateUserIsAdmin(getSender())) {
+            return;
+        }
+
+        UserInfo mutedUserInfo = this.actorToUserInfo.get(mutedUserActor);
+        mutedUserInfo.privilege = Privileges.MUTED_USER;
+
+        String muterUsername = this.actorToUserInfo.get(getSender()).username;
+        mutedUserActor.tell(
+                new GroupTextMessage(this.groupName, muterUsername,
+                        String.format("You have been muted for %s in %s by %s!",
+                                muteUserCommand.timeInSeconds, this.groupName, muterUsername)),
+                getSender());
+
+
+        ActorSystem system = getContext().getSystem();
+        system.scheduler().scheduleOnce(
+                Duration.ofSeconds(muteUserCommand.timeInSeconds),
+                () -> {
+                    mutedUserInfo.privilege = Privileges.USER;
+                    mutedUserActor.tell(
+                            new GroupTextMessage(this.groupName, muterUsername,
+                                    "You have been unmuted! Muting time is up!"),
+                            getSender());
+                },
+                system.dispatcher());
+        mutedUserInfo.mutedTimeInSeconds = muteUserCommand.timeInSeconds;
     }
 
     private boolean validateUserInGroup(ActorRef userActor) {
@@ -180,11 +206,24 @@ public class GroupActor extends AbstractActor {
         return true;
     }
 
+    private boolean validateUserIsNotMuted(ActorRef userActor) {
+        UserInfo userInfo = this.actorToUserInfo.get(userActor);
+        if (!userInfo.privilege.hasPrivilegeOf(Privileges.USER)) {
+            userActor.tell(
+                    new CommandFailure(String.format("You are muted for %s seconds in %s",
+                            userInfo.mutedTimeInSeconds, this.groupName)),
+                    getSelf());
+            return false;
+        }
+        return true;
+    }
+
     private boolean validateUserIsAdmin(ActorRef userActor) {
         UserInfo userInfo = this.actorToUserInfo.get(userActor);
         if (!userInfo.privilege.hasPrivilegeOf(Privileges.CO_ADMIN)) {
             userActor.tell(
-                    new CommandFailure(String.format("You are neither an admin nor a co-admin of %s!", this.groupName)), getSelf());
+                    new CommandFailure(String.format("You are neither an admin nor a co-admin of %s!", this.groupName)),
+                    getSelf());
             return false;
         }
         return true;
