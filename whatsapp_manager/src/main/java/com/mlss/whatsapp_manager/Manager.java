@@ -116,6 +116,7 @@ public class Manager extends AbstractActor {
         getContext().watch(groupActor);
         groupNamesToActors.put(createGroupRequest.groupName, groupActor);
 
+        // TODO: Why is it called "CommandFailure"? It's not a failure
         getSender().tell(
                 new CommandFailure(String.format("%s created successfully!", createGroupRequest.groupName)),
                 getSelf()
@@ -124,6 +125,7 @@ public class Manager extends AbstractActor {
     }
 
     private void onLeaveGroup(LeaveGroupRequest leaveGroupRequest) {
+        // TODO: What if the creator leaves?
         groupNamesToActors.get(leaveGroupRequest.groupName).forward(leaveGroupRequest, getContext());
     }
 
@@ -154,6 +156,7 @@ public class Manager extends AbstractActor {
             return;
         }
 
+        // TODO: Delete this
         System.out.println("onActorTermination: Something wrong happened");
     }
 }

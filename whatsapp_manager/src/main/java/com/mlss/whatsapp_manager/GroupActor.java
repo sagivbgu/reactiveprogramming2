@@ -22,18 +22,18 @@ public class GroupActor extends AbstractActor {
     private enum Privileges {
         MUTED_USER(0), USER(1), CO_ADMIN(2), ADMIN(3);
 
-        private int previledgeLevel;
+        private int privilegeLevel;
 
         public boolean hasPrivilegeOf(Privileges privilege) {
-            return this.previledgeLevel >= privilege.getPrivilegeLevel();
+            return this.privilegeLevel >= privilege.getPrivilegeLevel();
         }
 
         public int getPrivilegeLevel() {
-            return this.previledgeLevel;
+            return this.privilegeLevel;
         }
 
-        private Privileges(int previledge_level) {
-            this.previledgeLevel = previledge_level;
+        Privileges(int privilegeLevel) {
+            this.privilegeLevel = privilegeLevel;
         }
     }
 
@@ -78,50 +78,50 @@ public class GroupActor extends AbstractActor {
     }
 
     private void onLeaveGroupRequest(LeaveGroupRequest leaveGroupRequest) {
+        // TODO: Delete
         if (!this.groupName.equals(leaveGroupRequest.groupName)) {
             System.out.println("Manager did something wrong");
             return;
         }
 
         if (!this.actorToUserInfo.containsKey(getSender())) {
-            String errorMessage = String.format("%s is not in %s!", leaveGroupRequest.leavingUsername, leaveGroupRequest.groupName);
+            String errorMessage = String.format("User %s is not in group %s", leaveGroupRequest.leavingUsername, leaveGroupRequest.groupName);
             System.out.println(errorMessage);
             getSender().tell(new CommandFailure(errorMessage), getSelf());
             return;
         }
 
         UserInfo leavingUser = this.actorToUserInfo.get(getSender());
+        this.router.route(new GroupTextMessage(this.groupName, leavingUser.username,
+                        String.format("%s has left %s!", leavingUser.username, this.groupName)),
+                this.getSelf());
 
-        if (leavingUser.privilege.hasPrivilegeOf(Privileges.MUTED_USER)) {
-            this.router.route(new GroupTextMessage(this.groupName, leavingUser.username, String.format("%s has left %s!", leavingUser.username, this.groupName)), this.getSelf());
-
-            if (leavingUser.privilege.hasPrivilegeOf(Privileges.ADMIN)) {
-                this.router.route(new GroupTextMessage(this.groupName, leavingUser.username, String.format("admin has closed %s!", this.groupName)), this.getSelf());
-            }
-
-            this.router = this.router.removeRoutee(getSender());
-            this.actorToUserInfo.remove(getSender());
+        if (leavingUser.privilege.hasPrivilegeOf(Privileges.ADMIN)) {
+            this.router.route(new GroupTextMessage(this.groupName, leavingUser.username,
+                            String.format("admin has closed %s!", this.groupName)),
+                    this.getSelf());
+            getContext().stop(getSelf());
+            return;
         }
+
+        this.router = this.router.removeRoutee(getSender());
+        this.actorToUserInfo.remove(getSender());
 
         if (leavingUser.privilege.hasPrivilegeOf(Privileges.CO_ADMIN)) {
             // TODO: Remove from co-admin list
-        }
-
-        if (leavingUser.privilege.hasPrivilegeOf(Privileges.ADMIN)) {
-            getContext().stop(getSelf());
         }
     }
 
     private void OnGroupSendText(TextMessage message) {
         if (validateUserInGroup()) {
-            // TODO: Validate Previledges
+            // TODO: Validate Privileges
             router.route(new GroupTextMessage(this.groupName, message.sender, message.message), getSender());
         }
     }
 
     private void OnGroupSendFile(BinaryMessage message) {
         if (validateUserInGroup()) {
-            // TODO: Validate Previledges
+            // TODO: Validate Privileges
             router.route(new GroupBinaryMessage(this.groupName, message), getSender());
         }
     }
@@ -136,5 +136,6 @@ public class GroupActor extends AbstractActor {
 
     private void onTerminated(Terminated t) {
         this.router = this.router.removeRoutee(t.getActor());
+        // TODO
     }
 }
