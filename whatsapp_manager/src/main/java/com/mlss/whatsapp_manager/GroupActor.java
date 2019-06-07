@@ -77,6 +77,8 @@ public class GroupActor extends AbstractActor {
                 .match(BinaryMessage.class, this::OnGroupSendFile)
                 .match(MuteUserCommand.class, this::onMuteUserCommand)
                 .match(UnmuteUserCommand.class, this::onUnmuteUserCommand)
+                .match(CoadminAddRequest.class, this::onCoadminAddRequest)
+                .match(CoadminRemoveRequest.class, this::onCoadminRemoveRequest)
                 .match(Terminated.class, this::onTerminated)
                 .build();
 
@@ -94,7 +96,7 @@ public class GroupActor extends AbstractActor {
     }
 
     private void onGroupInviteUserCommand(GroupInviteUserCommand inviteUserCommand) {
-        if (!validateSenderInGroup() && !validateSenderIsCoAdmin()) {
+        if (!validateSenderInGroup() || !validateSenderIsCoAdmin()) {
             return;
         }
 
@@ -126,7 +128,7 @@ public class GroupActor extends AbstractActor {
     }
 
     private void onGroupRemoveUserCommand(GroupRemoveUserCommand removeUserCommand) {
-        if (!validateSenderInGroup() && !validateSenderIsCoAdmin()) {
+        if (!validateSenderInGroup() || !validateSenderIsCoAdmin()) {
             return;
         }
 
@@ -137,15 +139,9 @@ public class GroupActor extends AbstractActor {
             return;
         }
 
-        // TODO: Really need it?
         if (removedUserActor.equals(this.groupCreatorActor)) {
             getSender().tell(new GeneralMessage("You can't remove the admin!"), getSelf());
             return;
-        }
-
-        UserInfo removedUserInfo = this.actorToUserInfo.get(removedUserActor);
-        if (removedUserInfo.privilege == Privileges.CO_ADMIN) {
-            // TODO: remove from co admin list
         }
 
         UserInfo removerUserInfo = this.actorToUserInfo.get(getSender());
@@ -173,19 +169,9 @@ public class GroupActor extends AbstractActor {
         }
 
         this.actorToUserInfo.remove(userActor);
-
-        if (leavingUser.privilege.hasPrivilegeOf(Privileges.CO_ADMIN)) {
-            // TODO: Remove from co-admin list
-        }
     }
 
     private void onLeaveGroupRequest(LeaveGroupRequest leaveGroupRequest) {
-        // TODO: Delete
-        if (!this.groupName.equals(leaveGroupRequest.groupName)) {
-            System.out.println("Manager did something wrong");
-            return;
-        }
-
         if (!this.actorToUserInfo.containsKey(getSender())) {
             String errorMessage = String.format("%s is not in %s!", leaveGroupRequest.leavingUsername, this.groupName);
             System.out.println(errorMessage);
@@ -209,13 +195,24 @@ public class GroupActor extends AbstractActor {
     }
 
     private void onMuteUserCommand(MuteUserCommand muteUserCommand) {
-        if (!validateSenderInGroup() || !validateTargetInGroup(muteUserCommand.mutedUsername)
-                || !validateSenderIsCoAdmin() || !validateNotMutingItself(muteUserCommand.mutedUsername)) {
+        if (!validateSenderInGroup()
+                || !validateTargetInGroup(muteUserCommand.mutedUsername)
+                || !validateSenderIsCoAdmin()
+                || !validateNotTargetingItself(muteUserCommand.mutedUsername, "You can't mute yourself!")) {
             return;
         }
 
         ActorRef mutedUserActor = getUserActorByName(muteUserCommand.mutedUsername);
+        if (mutedUserActor.equals(this.groupCreatorActor)) {
+            getSender().tell(new GeneralMessage("You can't mute the group admin"), getSelf());
+            return;
+        }
+
         UserInfo mutedUserInfo = this.actorToUserInfo.get(mutedUserActor);
+        if (mutedUserInfo.muteInfo != null) {
+            mutedUserInfo.muteInfo.muteCancellable.cancel();
+        }
+
         mutedUserInfo.privilege = Privileges.MUTED_USER;
 
         String muterUsername = this.actorToUserInfo.get(getSender()).username;
@@ -234,9 +231,9 @@ public class GroupActor extends AbstractActor {
         mutedUserInfo.muteInfo = new MuteInfo(muteUserCommand.timeInSeconds, muteCancellable);
     }
 
-    private boolean validateNotMutingItself(String mutedUsername) {
-        if (this.actorToUserInfo.get(getSender()).username.equals(mutedUsername)) {
-            getSender().tell(new GeneralMessage("You can't mute yourself!"), getSelf());
+    private boolean validateNotTargetingItself(String targetUsername, String errorMessage) {
+        if (this.actorToUserInfo.get(getSender()).username.equals(targetUsername)) {
+            getSender().tell(new GeneralMessage(errorMessage), getSelf());
             return false;
         }
         return true;
@@ -261,13 +258,65 @@ public class GroupActor extends AbstractActor {
         unmuteUser(mutedUserActor, mutedUserInfo, muterUsername, "");
     }
 
-    private void unmuteUser(ActorRef mutedUserActor, UserInfo mutedUserInfo, String muterUsername, String unmutingReason) {
+    private void unmuteUser(ActorRef mutedUserActor, UserInfo mutedUserInfo, String unmuterUsername, String unmutingReason) {
         mutedUserInfo.privilege = Privileges.USER;
         mutedUserActor.tell(
-                new GroupTextMessage(this.groupName, muterUsername,
+                new GroupTextMessage(this.groupName, unmuterUsername,
                         "You have been unmuted! " + unmutingReason),
                 getSender());
         mutedUserInfo.muteInfo = null;
+    }
+
+    private void onCoadminAddRequest(CoadminAddRequest coadminAddRequest) {
+        if (!validateSenderInGroup() || !validateTargetInGroup(coadminAddRequest.coadminUsername)
+                || !validateSenderIsCoAdmin() || !validateNotTargetingItself(coadminAddRequest.coadminUsername,
+                "You can't add yourself as a co-admin")) {
+            return;
+        }
+
+        ActorRef coadminUserActor = getUserActorByName(coadminAddRequest.coadminUsername);
+        if (coadminUserActor.equals(this.groupCreatorActor)) {
+            getSender().tell(new GeneralMessage("You can't add the admin as co-admin!"), getSelf());
+            return;
+        }
+
+        UserInfo coadminUserInfo = this.actorToUserInfo.get(coadminUserActor);
+        if (coadminUserInfo.muteInfo != null) {
+            coadminUserInfo.muteInfo.muteCancellable.cancel();
+            unmuteUser(coadminUserActor, coadminUserInfo, this.actorToUserInfo.get(getSender()).username, "");
+        }
+        coadminUserInfo.privilege = Privileges.CO_ADMIN;
+
+        coadminUserActor.tell(
+                new GeneralMessage(String.format("You have been promoted to co-admin in %s!", this.groupName)),
+                getSender());
+    }
+
+    private void onCoadminRemoveRequest(CoadminRemoveRequest coadminRemoveRequest) {
+        if (!validateSenderInGroup() || !validateTargetInGroup(coadminRemoveRequest.coadminUsername)
+                || !validateSenderIsCoAdmin() || !validateNotTargetingItself(coadminRemoveRequest.coadminUsername,
+                "You can't demote yourself from being a co-admin")) {
+            return;
+        }
+
+        ActorRef coadminUserActor = getUserActorByName(coadminRemoveRequest.coadminUsername);
+        if (coadminUserActor.equals(this.groupCreatorActor)) {
+            getSender().tell(new GeneralMessage("You can't remove the admin from being co-admin!"), getSelf());
+            return;
+        }
+        UserInfo coadminUserInfo = this.actorToUserInfo.get(coadminUserActor);
+
+        if (!coadminUserInfo.privilege.hasPrivilegeOf(Privileges.CO_ADMIN)) {
+            getSender().tell(new GeneralMessage(String.format("You can't demote a non-co-admin user %s",
+                    coadminRemoveRequest.coadminUsername)),
+                    getSender());
+            return;
+        }
+
+        coadminUserInfo.privilege = Privileges.USER;
+        coadminUserActor.tell(
+                new GeneralMessage(String.format("You have been demoted to user in %s!", this.groupName)),
+                getSender());
     }
 
     private boolean validateTargetInGroup(String username) {

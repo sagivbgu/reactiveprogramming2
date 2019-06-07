@@ -75,6 +75,8 @@ public class UserActor extends AbstractActor {
                 .match(GroupInviteMessage.class, this::onGroupInviteMessage)
                 .match(MuteUserCommand.class, command -> this.managingServer.tell(command, getSelf()))
                 .match(UnmuteUserCommand.class, command -> this.managingServer.tell(command, getSelf()))
+                .match(CoadminAddRequest.class, command -> this.managingServer.tell(command, getSelf()))
+                .match(CoadminRemoveRequest.class, command -> this.managingServer.tell(command, getSelf()))
                 .match(GeneralMessage.class, generalMessage -> printGeneralMessage(generalMessage))
                 .match(GroupInviteResponse.class, o -> System.out.println("Illegal command"))  // TODO: Why?
                 .match(Terminated.class, this::onTerminated)

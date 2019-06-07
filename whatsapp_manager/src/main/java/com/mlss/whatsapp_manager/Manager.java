@@ -33,18 +33,19 @@ public class Manager extends AbstractActor {
                 .match(DisconnectRequest.class, this::onDisconnectRequest)
                 .match(UserAddressRequest.class, this::onUserAddressRequest)
                 .match(CreateGroupRequest.class, this::onCreateGroup)
-                .match(LeaveGroupRequest.class, msg -> forwardIfGroupExists(msg, msg.groupName))
-                .match(GroupSendMessage.class, msg -> forwardIfGroupExists(msg.message, msg.groupName))
                 .match(GroupInviteUserCommand.class, this::onGroupInviteUserCommand)
                 .match(GroupRemoveUserCommand.class, this::onGroupRemoveUserCommand)
+                .match(GroupSendMessage.class, msg -> forwardIfGroupExists(msg.message, msg.groupName))
                 .match(MuteUserCommand.class, command -> forwardIfGroupExists(command, command.groupName))
                 .match(UnmuteUserCommand.class, command -> forwardIfGroupExists(command, command.groupName))
+                .match(CoadminAddRequest.class, command -> forwardIfGroupExists(command, command.groupName))
+                .match(CoadminRemoveRequest.class, command -> forwardIfGroupExists(command, command.groupName))
+                .match(LeaveGroupRequest.class, msg -> forwardIfGroupExists(msg, msg.groupName))
                 .match(Terminated.class, this::onActorTermination)
                 .build();
     }
 
     // TODO: Check what happens if user got invite, but meanwhile the group was terminated
-
     private void onGroupInviteUserCommand(GroupInviteUserCommand inviteUserCommand) {
         ActorRef groupActor = validateGroupExists(inviteUserCommand.groupName);
         if (groupActor == null) {
