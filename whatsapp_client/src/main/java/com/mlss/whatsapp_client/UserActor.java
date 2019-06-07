@@ -130,16 +130,19 @@ public class UserActor extends AbstractActor {
     }
 
     private void onDisconnectRequest(DisconnectRequest request) {
-        getContext().become(this.disconnectedState);
-        this.username = null;
-
         getContext().unwatch(this.managingServer);
 
         this.managingServer = getManagingServerActor();
         if (this.managingServer != null) {
             this.managingServer.tell(request, getSelf());
-            this.managingServer = null;
         }
+        disconnect();
+    }
+
+    private void disconnect() {
+        getContext().become(this.disconnectedState);
+        this.username = null;
+        this.managingServer = null;
     }
 
     private void onLeaveGroupRequest(LeaveGroupRequest leaveGroupRequest) {
@@ -223,8 +226,7 @@ public class UserActor extends AbstractActor {
 
     private void onTerminated(Terminated terminatedActor) {
         System.out.println("server got offline! disconnected.");
-        this.managingServer = null;
-        getContext().become(this.disconnectedState);
+        disconnect();
     }
 
     private void printGeneralMessage(GeneralMessage generalMessage) {

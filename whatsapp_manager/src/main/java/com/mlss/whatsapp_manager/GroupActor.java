@@ -139,7 +139,7 @@ public class GroupActor extends AbstractActor {
 
         // TODO: Really need it?
         if (removedUserActor.equals(this.groupCreatorActor)) {
-            getSender().tell(new GeneralMessage("You can't remove yourself!"), getSelf());
+            getSender().tell(new GeneralMessage("You can't remove the admin!"), getSelf());
             return;
         }
 
