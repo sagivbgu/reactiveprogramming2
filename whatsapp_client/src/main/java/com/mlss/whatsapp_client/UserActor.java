@@ -30,7 +30,7 @@ public class UserActor extends AbstractActor {
     }
 
     private String username;
-    private ActorSelection managingServer;
+    private ActorRef managingServer;
     private final Receive disconnectedState;
     private final Receive connectingState;
     private final Receive connectedState;
@@ -40,8 +40,7 @@ public class UserActor extends AbstractActor {
     private Queue<ActorRef> groupInvites;
 
     public UserActor() {
-        String managingServerAddress = ConfigFactory.load().getString("akka.remote.managing-server");
-        this.managingServer = getContext().actorSelection(managingServerAddress);
+        this.managingServer = null;
         this.usersToActors = new HashMap<>();
         this.usersToMessageQueues = new HashMap<>();
         this.groupInvites = new LinkedList<>();
@@ -78,12 +77,14 @@ public class UserActor extends AbstractActor {
                 .match(UnmuteUserCommand.class, command -> this.managingServer.tell(command, getSelf()))
                 .match(GeneralMessage.class, generalMessage -> printGeneralMessage(generalMessage))
                 .match(GroupInviteResponse.class, o -> System.out.println("Illegal command"))  // TODO: Why?
+                .match(Terminated.class, this::onTerminated)
                 .build();
 
         this.invitedState = receiveBuilder()
                 .match(GroupInviteMessage.class, this::onGroupInviteMessage)
                 .match(GroupInviteResponse.class, this::onGroupInviteResponse)
                 .match(GeneralMessage.class, generalMessage -> System.out.println(generalMessage.message))
+                .match(Terminated.class, this::onTerminated)
                 .matchAny(o -> System.out.println("Illegal command."))
                 .build();
     }
@@ -93,28 +94,28 @@ public class UserActor extends AbstractActor {
         return this.disconnectedState;
     }
 
+    private ActorRef getManagingServerActor() {
+        String managingServerAddress = ConfigFactory.load().getString("akka.remote.managing-server");
+        Timeout timeout = new Timeout(3, TimeUnit.SECONDS);
+        Future<ActorRef> rt = getContext().actorSelection(managingServerAddress).resolveOne(timeout);
+
+        try {
+            return Await.result(rt, timeout.duration());
+        } catch (Exception e) {
+            System.out.println("server is offline!");
+            return null;
+        }
+    }
+
     private void onConnectRequest(ConnectRequest request) {
-        if (!validateActorOnline(managingServer)) {
+        this.managingServer = this.getManagingServerActor();
+        if (this.managingServer == null) {
             return;
         }
 
+        getContext().watch(this.managingServer);
         getContext().become(this.connectingState);
-        managingServer.tell(request, getSelf());
-        // TODO: getContext().watch(managingServer)
-    }
-
-    // TODO: Move to common utils
-    private boolean validateActorOnline(ActorSelection actor) {
-        Timeout timeout = new Timeout(5, TimeUnit.SECONDS);
-        Future<ActorRef> rt = actor.resolveOne(timeout);
-
-        try {
-            Await.result(rt, timeout.duration());
-            return true;
-        } catch (Exception e) {
-            System.out.println("server is offline!");
-            return false;
-        }
+        this.managingServer.tell(request, getSelf());
     }
 
     private void onConnectionAccepted(ConnectionAccepted response) {
@@ -131,8 +132,13 @@ public class UserActor extends AbstractActor {
     private void onDisconnectRequest(DisconnectRequest request) {
         getContext().become(this.disconnectedState);
         this.username = null;
-        if (validateActorOnline(this.managingServer)) {
+
+        getContext().unwatch(this.managingServer);
+
+        this.managingServer = getManagingServerActor();
+        if (this.managingServer != null) {
             this.managingServer.tell(request, getSelf());
+            this.managingServer = null;
         }
     }
 
@@ -213,6 +219,12 @@ public class UserActor extends AbstractActor {
         if (this.groupInvites.size() == 0) {
             getContext().become(this.connectedState);
         }
+    }
+
+    private void onTerminated(Terminated terminatedActor) {
+        System.out.println("server got offline! disconnected.");
+        this.managingServer = null;
+        getContext().become(this.disconnectedState);
     }
 
     private void printGeneralMessage(GeneralMessage generalMessage) {
