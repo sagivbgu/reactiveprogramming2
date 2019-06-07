@@ -150,6 +150,7 @@ public class GroupActor extends AbstractActor {
 
         UserInfo removerUserInfo = this.actorToUserInfo.get(getSender());
         this.actorToUserInfo.remove(removedUserActor);
+        this.router = this.router.removeRoutee(removedUserActor);
 
         String message = String.format("You have been removed from %s by %s!", this.groupName, removerUserInfo.username);
         removedUserActor.tell(new GeneralMessage(message, removerUserInfo.username, this.groupName), getSelf());
@@ -331,6 +332,6 @@ public class GroupActor extends AbstractActor {
     private void onTerminated(Terminated t) {
         ActorRef userActor = t.getActor();
         this.leaveGroup(userActor);
-        this.router = this.router.removeRoutee(t.getActor());
+        this.router = this.router.removeRoutee(userActor);
     }
 }
