@@ -175,6 +175,22 @@ public class CommandsExecutor {
             case "user":
                 runGroupUserCommand(commandWords);
                 break;
+            case "coadmin":
+                if (commandWords.length != 5) {
+                    throw new IllegalCommandException();
+                }
+                String coadminCommand = commandWords[2];
+                String groupName = commandWords[3];
+                String targetUsername = commandWords[4];
+
+                if (coadminCommand.equals("add")) {
+                    this.userActor.tell(new CoadminAddRequest(groupName, targetUsername), ActorRef.noSender());
+                } else if (coadminCommand.equals("remove")) {
+                    this.userActor.tell(new CoadminRemoveRequest(groupName, targetUsername), ActorRef.noSender());
+                } else {
+                    throw new IllegalCommandException();
+                }
+                break;
             default:
                 throw new IllegalCommandException();
         }

@@ -92,6 +92,26 @@ public class GroupMessages {
         }
     }
 
+    static public class CoadminRemoveRequest implements Serializable {
+        public final String groupName;
+        public final String coadminUsername;
+
+        public CoadminRemoveRequest(String groupName, String coadminUsername) {
+            this.groupName = groupName;
+            this.coadminUsername = coadminUsername;
+        }
+    }
+
+    static public class CoadminAddRequest implements Serializable {
+        public final String groupName;
+        public final String coadminUsername;
+
+        public CoadminAddRequest(String groupName, String coadminUsername) {
+            this.groupName = groupName;
+            this.coadminUsername = coadminUsername;
+        }
+    }
+
     public GroupMessages() {
     }
 }
