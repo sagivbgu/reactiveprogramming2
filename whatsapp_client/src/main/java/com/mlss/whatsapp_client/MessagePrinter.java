@@ -3,7 +3,6 @@ package com.mlss.whatsapp_client;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-// TODO: This should be actor?
 public class MessagePrinter {
     public static final String USER_SENDER = "user";
 

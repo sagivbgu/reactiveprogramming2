@@ -180,9 +180,6 @@ public class Manager extends AbstractActor {
             System.out.println(String.format("onActorTermination: User %s terminated", terminatedUsername));
             return;
         }
-
-        // TODO: Delete this
-        System.out.println("onActorTermination: Something wrong happened");
     }
 
     private ActorRef validateGroupExists(String groupName) {
