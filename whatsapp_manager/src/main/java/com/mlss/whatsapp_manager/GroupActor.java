@@ -70,6 +70,7 @@ public class GroupActor extends AbstractActor {
 
         this.receiverBuilder = receiveBuilder()
                 .match(LeaveGroupRequest.class, this::onLeaveGroupRequest)
+                .match(DisconnectRequest.class, this::onDisconnectRequest)
                 .match(GroupInviteUserCommand.class, this::onGroupInviteUserCommand)
                 .match(GroupRemoveUserCommand.class, this::onGroupRemoveUserCommand)
                 .match(GroupInviteResponse.class, this::onGroupInviteResponse)
@@ -179,6 +180,10 @@ public class GroupActor extends AbstractActor {
             return;
         }
 
+        this.leaveGroup(getSender());
+    }
+
+    private void onDisconnectRequest(DisconnectRequest request) {
         this.leaveGroup(getSender());
     }
 

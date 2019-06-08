@@ -99,6 +99,10 @@ public class Manager extends AbstractActor {
         System.out.println("User disconnected: " + getUsernameByPath(userPath));
         this.usersToAddresses.remove(username);
 
+        this.groupNamesToActors.forEach((groupName, groupActor) ->
+            groupActor.forward(request, getContext())
+        );
+
         getSender().tell(new DisconnectAccepted(username), getSelf());
         getContext().unwatch(getSender());
     }
