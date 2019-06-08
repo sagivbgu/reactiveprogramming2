@@ -17,6 +17,10 @@ Sagiv Schieber - TODO
                   If the user tries to connect with a username that's already exists, the server
                   replies with ConnectionDenied, otherwise replies with ConnectionAccepted.
 
+            - Handles requests for user addresses
+                - When a user wants to send a message to another user, he first asks the server
+                  for the target user's address. Then, a peer-to-peer conversation is made.
+
         * Managing the groups:
             - Handles creation on new groups:
                 - When the user tries to create a new group, it sends CreateGroupRequest.
@@ -31,6 +35,14 @@ Sagiv Schieber - TODO
 
     ~ GroupActor does the following:
         - Handles all group related commands (except for group creation).
+        - Handles all group users and their privileges.
+            - Unmuting a user is done automatically after the specified period of time thanks to AKKA's scheduler.
+              Moreover, the automatic unmuting is being canceled in some cases (For example, when an admin unmutes
+              the user earlier).
+        - All messages sent to a group are broadcast to all group users (using AKKA's router).
+        - When a user request is denied (For example, when a user wants to invite another user to the group but
+          doesn't have co-admin or admin privilege), a message is sent back directly to the user. This can be done since
+          the ManagerActor passes the original request from the user actor using AKKA's forward.
         - When the group creator leaves the group (or if exited from the client without /user disconnect)
           the group stops itself. The ManagerActor then gets notified the group stopped and removes it from the
           active groups list.
