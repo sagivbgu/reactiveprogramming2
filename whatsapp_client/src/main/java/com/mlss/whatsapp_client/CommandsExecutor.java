@@ -1,8 +1,7 @@
 package com.mlss.whatsapp_client;
 
 import akka.actor.ActorRef;
-import com.mlss.whatsapp_common.UserFeatures.*;
-import com.mlss.whatsapp_common.ManagerCommands.*;
+import com.mlss.whatsapp_common.ManagerMessages.*;
 import com.mlss.whatsapp_common.GroupMessages.*;
 
 import java.io.IOException;
