@@ -9,8 +9,7 @@ import akka.routing.BroadcastRoutingLogic;
 import akka.routing.Router;
 
 import com.mlss.whatsapp_common.GroupMessages.*;
-import com.mlss.whatsapp_common.ManagerCommands.*;
-import com.mlss.whatsapp_common.UserFeatures.*;
+import com.mlss.whatsapp_common.ManagerMessages.*;
 
 
 public class GroupActor extends AbstractActor {

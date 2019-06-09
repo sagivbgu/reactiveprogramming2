@@ -6,8 +6,7 @@ import akka.actor.Props;
 import akka.actor.Terminated;
 
 import com.mlss.whatsapp_common.GroupMessages.*;
-import com.mlss.whatsapp_common.ManagerCommands.*;
-import com.mlss.whatsapp_common.UserFeatures.*;
+import com.mlss.whatsapp_common.ManagerMessages.*;
 
 import java.util.HashMap;
 import java.util.Map;

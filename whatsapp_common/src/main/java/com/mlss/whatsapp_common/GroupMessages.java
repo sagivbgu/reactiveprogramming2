@@ -1,7 +1,8 @@
 package com.mlss.whatsapp_common;
 
 import java.io.Serializable;
-import com.mlss.whatsapp_common.ManagerCommands.*;
+
+import com.mlss.whatsapp_common.ManagerMessages.*;
 
 public class GroupMessages {
     static public class GroupTextMessage implements Serializable {
@@ -67,6 +68,15 @@ public class GroupMessages {
             this.groupName = groupName;
             this.userToRemove = userToRemove;
             this.removedUserAddress = null;
+        }
+    }
+
+    static public class LeaveGroupRequest implements Serializable {
+        public final String groupName;
+        public String leavingUsername;
+
+        public LeaveGroupRequest(String groupName) {
+            this.groupName = groupName;
         }
     }
 
