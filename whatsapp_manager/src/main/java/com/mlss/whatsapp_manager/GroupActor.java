@@ -184,7 +184,9 @@ public class GroupActor extends AbstractActor {
     }
 
     private void onDisconnectRequest(DisconnectRequest request) {
-        this.leaveGroup(getSender());
+        if (this.actorToUserInfo.containsKey(getSender())) {
+            this.leaveGroup(getSender());
+        }
     }
 
     private void OnGroupSendText(TextMessage message) {
