@@ -76,8 +76,8 @@ public class UserActor extends AbstractActor {
                 .match(UnmuteUserCommand.class, command -> this.managingServer.tell(command, getSelf()))
                 .match(CoadminAddRequest.class, command -> this.managingServer.tell(command, getSelf()))
                 .match(CoadminRemoveRequest.class, command -> this.managingServer.tell(command, getSelf()))
-                .match(GeneralMessage.class, generalMessage -> printGeneralMessage(generalMessage))
-                .match(GroupInviteResponse.class, o -> System.out.println("Illegal command"))  // TODO: Why?
+                .match(GeneralMessage.class, this::printGeneralMessage)
+                .match(GroupInviteResponse.class, o -> System.out.println("Illegal command"))
                 .match(Terminated.class, this::onTerminated)
                 .build();
 
@@ -173,7 +173,7 @@ public class UserActor extends AbstractActor {
             getUserMessagesQueue(request.target).add(request.message);
             this.managingServer.tell(new UserAddressRequest(request.target), getSelf());
         } else {
-            targetActor.tell(request.message, getSelf());  // TODO: What if it fails? What if the user has disconnected?
+            targetActor.tell(request.message, getSelf());
         }
     }
 
