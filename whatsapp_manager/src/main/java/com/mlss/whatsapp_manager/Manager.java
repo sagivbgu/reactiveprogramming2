@@ -44,7 +44,6 @@ public class Manager extends AbstractActor {
                 .build();
     }
 
-    // TODO: Check what happens if user got invite, but meanwhile the group was terminated
     private void onGroupInviteUserCommand(GroupInviteUserCommand inviteUserCommand) {
         ActorRef groupActor = validateGroupExists(inviteUserCommand.groupName);
         if (groupActor == null) {
@@ -181,7 +180,6 @@ public class Manager extends AbstractActor {
         if (terminatedUsername != null && this.usersToAddresses.containsKey(terminatedUsername)) {
             this.usersToAddresses.remove(terminatedUsername);
             System.out.println(String.format("onActorTermination: User %s terminated", terminatedUsername));
-            return;
         }
     }
 
