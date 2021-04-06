@@ -1,0 +1,85 @@
+~~~~~~~~~~~~~~ DESIGN ~~~~~~~~~~~~~~
+1.  whatsapp_manager:
+    This is the managing server.
+    The managing server includes 2 actors: ManagerActor & GroupActor.
+
+    ~ ManagerActor does the following:
+        * Managing the users:
+            - Handles new user connections & disconnections:
+                - Receives from the client ConnectRequest & DisconnectRequest messages
+                  and answers ConnectionAccepted / ConnectionDenied & DisconnectAccepted
+                  If the user tries to connect with a username that's already exists, the server
+                  replies with ConnectionDenied, otherwise replies with ConnectionAccepted.
+
+            - Handles requests for user addresses
+                - When a user wants to send a message to another user, he first asks the server
+                  for the target user's address. Then, a peer-to-peer conversation is made.
+
+        * Managing the groups:
+            - Handles creation on new groups:
+                - When the user tries to create a new group, it sends CreateGroupRequest.
+                  If there's not already a group with the same name, the ManagerActor creates a new GroupActor and
+                  watches (Akka's DeathWatch) for the new group actor.
+                  When the group actor stops itself (further info in GroupActor explanation) the ManagerActor
+                  removes it from the active groups list.
+
+            - Forwards relevant messages to a specific group:
+                - All the group's commands are sent to the ManagerActor.
+                  The ManagerActor just forwards these messages to the relevant GroupActor.
+
+    ~ GroupActor does the following:
+        - Handles all group related commands (except for group creation).
+        - Handles all group users and their privileges.
+            - Unmuting a user is done automatically after the specified period of time thanks to AKKA's scheduler.
+              Moreover, the automatic unmuting is being canceled in some cases (For example, when an admin unmutes
+              the user earlier).
+        - All messages sent to a group are broadcast to all group users (using AKKA's router).
+        - When a user request is denied (For example, when a user wants to invite another user to the group but
+          doesn't have co-admin or admin privilege), a message is sent back directly to the user. This can be done since
+          the ManagerActor passes the original request from the user actor using AKKA's forward.
+        - When the group creator leaves the group (or if exited from the client without /user disconnect)
+          the group stops itself. The ManagerActor then gets notified the group stopped and removes it from the
+          active groups list.
+
+
+2. whatsapp_client:
+    This is the client.
+    The client includes the UserActor and CommandsExecutor.
+
+    ~ CommandExecutor:
+        * The CommandsExecutor reads and parses the input from the user, builds the relevant message
+          and sends it to the UserActor.
+
+    ~ UserActor:
+        The UserActor has 4 states (become model):
+        * disconnectedState:
+            - In this state the only permitted messages are ConnectRequest / DisconnectAccepted.
+              "Please connect before entering commands!" will be printed if any other message
+              will be sent to the UserActor.
+
+            - When ConnectRequest is received, we switch the state to the connecting state.
+
+        * connectingState:
+            - In this state the only permitted messages are ConnectionAccepted / ConnectionDenied.
+              "Please wait until connection succeeds before entering commands!" will be printed if
+              any other message will be sent to the UserActor.
+
+            - When ConnectionAccepted is received, we switch the state to the connected state.
+
+            - When ConnectionDenied is received, we switch back to the disconnecting state.
+
+        * connectedState:
+            - This state handles receiving all other commands the client must support (except for group invite command).
+              When the UserActor receives message from the CommandsExecutor, it sends the message to the ManagerActor.
+
+            - The UserActor watches (AKKA DeathWatch) for the ManagerActor.
+              When the ManagerActor gets offline the UserActor prints "server got offline! disconnected."
+              and switches to the disconnected state.
+
+            - When GroupInviteMessage is received, we switch the state to the invited state.
+
+        * invitedState:
+            - This state is switched to when the user got an invitation to a group from other user
+              and handles the invite process.
+
+            - Notice that multiple invites at once is supported.
